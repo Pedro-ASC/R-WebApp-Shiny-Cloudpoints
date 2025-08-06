@@ -1,0 +1,456 @@
+# App Shiny: Diagnóstico e Tratamento de Nuvens de Pontos LiDAR
+
+#options(shiny.maxRequestSize = 500 * 1024^2)  # Limite de upload: 500 MB
+#library(sf)
+#library(shiny)
+#library(lidR)
+#library(rgl)
+#library(DT)
+#library(shinyBS)  # Para colapsar/expandir explicações
+#library(raster)
+
+#Interface
+ui <- fluidPage(
+  tags$style(HTML("
+    .panel-group {
+      max-width: 100%;
+    }
+    .panel-title > a {
+      display: block;
+      padding: 6px 12px;
+      font-weight: bold;
+      text-decoration: none;
+      color: #2c3e50;
+    }
+    .panel-title > a:hover {
+      text-decoration: underline;
+    }
+  ")),
+  titlePanel("Diagnóstico de Nuvens de Pontos LiDAR"),
+  sidebarLayout(
+    sidebarPanel(
+      
+      #Aba Diagnóstico Sidebar      
+      
+      conditionalPanel(
+        condition = "input.aba_ativa == 'Diagnóstico'",
+        fileInput("lasfile", "Carregue um arquivo LAS/LAZ", accept = c(".las", ".laz")),
+        hr(),
+        h4("Estrutura padrão de arquivos .las"),
+        tags$a("Saiba mais", href = "#", onclick = "window.open('https://www.asprs.org/wp-content/uploads/2019/03/LAS_1_4_r14.pdf', '_blank'); return false;"),
+        bsCollapse(id = "explicacoes_las", open = NULL,
+                   bsCollapsePanel("X, Y, Z ▼", HTML("<ul><li>Coordenadas espaciais do ponto no espaço.</li>
+                                              <li>Valores de X e Y menores que 1000 tendem a indicar sistemas locais de georreferenciamento.</li>
+                                              <li>bbox = bounding box (caixa em torno da nuvem de pontos).</li>
+                                              <li>O valor real da coordenada é calculado através da multiplicação com Scale Value e adição do Offset Value</li></ul>")),
+                   bsCollapsePanel("Intensity ▼", HTML("<ul><li>Valor que representa a magnitude do retorno do pulso, ou seja, quanto do pulso foi refletido de volta pro sensor.</li>
+                                                   <li>Superfícies mais reflexivas tendem a gerar valores maiores.</li></ul>")),
+                   bsCollapsePanel("ReturnNumber ▼", HTML("<ul><li>Número sequencial do retorno para aquele pulso.</li>
+                                                      <li>Cada vez que o pulso atravessa uma superfície e retorna ao sensor.</li></ul>")),
+                   bsCollapsePanel("NumberOfReturns ▼", HTML("<ul><li>Número total de retornos detectados para aquele pulso.</li></ul>")),
+                   bsCollapsePanel("ScanDirectionFlag ▼", HTML("<ul><li>Utilizado para equipamentos com scanner rotativo.
+                                                           <ul><li>1 <- Scanner voltado para a esquerda em relação à direção do vôo</li>
+                                                           <li>0 <- Scanner voltado para a direita (ou quando o equipamento não for rotativo).</li></ul></li></ul>")),
+                   bsCollapsePanel("EdgeOfFlightline ▼", HTML("<ul><li>Marca pontos oriundos da borda (edge) do scanemento com valor '1'.</li>
+                                                              <li>Recebe o valor 0 quando não está na borda ou não é compatível com o equipamento (Ex: Scanner 360°)</li></ul>")),
+                   bsCollapsePanel("Classification ▼", HTML("<ul><li>Classe atribuída ao ponto. Exemplos:
+                                                        <ul><li>0 ou 1  <- Não classificado</li>
+                                                        <li>2 <- Chão</li>
+                                                        <li>3, 4 ou 5 <- Vegetação</li>
+                                                        <li>7 <- Ruído</li></ul></li></ul>")),
+                   bsCollapsePanel("ScanAngleRank ▼", HTML("<ul><li>Ângulo do feixe de escaneamento no momento da medição.</li>
+                                                       <li>Recebe valores de -90 a 90 graus.</li></ul>")),
+                   bsCollapsePanel("UserData ▼", HTML("<ul><li>Campo de uso livre destinado ao usuário.</li></ul>")),
+                   bsCollapsePanel("PointSourceID ▼", HTML("<ul><li>Identificador temporal da origem do ponto.</li>
+                                                       <li>Vôos diferentes, por exemplo, tem PointSourceID diferentes.</li>")),
+                   bsCollapsePanel("GPS Time ▼", HTML("<ul><li>Instante exato em que o pulso foi emitido.</li>
+                                                  <li>Medido a partir do tempo base do sistema GPS.</li></ul>")),
+                   bsCollapsePanel("RGB (R, G, B) ▼", HTML("<ul><li>Valores das bandas Vermelho, Verde e Azul associadas ao ponto.</li></ul>"))
+        )
+      ),
+      
+      #Aba Classificaçao do chao Sidebar      
+      
+      conditionalPanel(
+        condition = "input.aba_ativa == 'Classificação do chão'",
+        
+        h4("1. Escolha o algoritmo de classificação"),
+        radioButtons("algoritmo_solo", label = NULL,
+                     choices = c("CSF" = "csf", "PMF" = "pmf", "MCC" = "mcc"),
+                     selected = "csf"),
+        
+        h4("2. Parâmetros do algoritmo"),
+        uiOutput("parametros_algo"),
+        
+        actionButton("classificar_solo", "Classificar solo"),
+        hr(),
+        
+        actionButton("aplicar_classificacao", "Aplicar classificação ao LAS"),
+        
+        checkboxInput("mostrar_outros", "Mostrar pontos não classificados como chão", value = TRUE),
+        
+        selectInput("cor_chao", "Cor dos pontos classificados como chão:",
+                    choices = c("Verde" = "green", "Azul" = "blue", "Vermelho" = "red", "Amarelo" = "yellow"),
+                    selected = "green"),
+        
+        wellPanel(
+          h4("Diagnóstico dos pontos no chão"),
+          uiOutput("diag_solo_classificado")
+        ),
+        
+        h4("Sobre os algoritmos"),
+        bsCollapse(id = "explicacoes_algoritmos", open = NULL,
+                   
+                   bsCollapsePanel("CSF (Cloth Simulation Filter) ▼", HTML("<span style='font-size:smaller;'><ul>
+    <li>Simula um 'pano' (grid) caindo sobre os pontos da nuvem, que se ajusta ao terreno e ajuda a identificar o solo.</li>
+    <li>Os pontos são classificados de acordo com sua distância à posição do grid simulado</li>
+    <li>É robusto em terrenos irregulares e vegetação densa.</li>
+    <li><strong>Argumentos</strong>:
+    <ul><li><em>sloop_smoth</em>: Lógico. Aplica correção para terrenos íngremes.</li>
+    <li><em>class_threshold</em>: Numérico. Distância máxima entre o ponto e o 'pano' para ser classificado.</li>
+    <li><em>cloth_resolution</em>: Numérico. Distância entre os nós da malha (grid) do 'pano'.</li>
+    <li><em>rigidness</em>: Inteiro. Controla a rigidez com que o 'pano' dobra. Quanto mais flexível mais o nó do grid se deslocará até o próximo ponto. (Lembre-se: O 'pano' está caindo)
+      <ul><li>1 : 'Pano' flexível</li>
+          <li>2 : Médio</li>
+          <li>3 : Rígido</li></ul></li>
+    <li><em>iterations</em>: Inteiro. Valor padrão. Máximo de iterações na simulação do 'pano'.</li>
+    <li><em>time_step</em>: Numérico. Valor padrão. Passo do deslocamento vertical descendente (queda).</li></ul> 
+  </ul>
+  <p><a href='https://www.mdpi.com/2072-4292/8/6/501' target='_blank'>Zhang et al., 2016</a></p>
+  </span>")),
+                   
+                   bsCollapsePanel("PMF (Progressive Morphological Filter) ▼", HTML("<ul>
+    <li>Baseado em operações morfológicas aplicadas progressivamente para remover vegetação e preservar o solo.</li>
+    <li>É adequado para áreas planas e topografia simples.</li>
+    <li>É sensível à escolha do raio estrutural e ao crescimento incremental.</li>
+  </ul>")),
+                   
+                   bsCollapsePanel("MCC (Multiscale Curvature Classification) ▼", HTML("<ul>
+    <li>Utiliza a curvatura local em múltiplas escalas para distinguir pontos de solo e vegetação.</li>
+    <li>Funciona bem em áreas com relevo suave e estruturas pequenas.</li>
+    <li>Pode ser mais lento por envolver análise multiescala.</li>
+  </ul>"))
+                   
+        ),
+        hr()    
+      )
+    ),
+    
+    mainPanel(
+      tabsetPanel(id = "aba_ativa",
+                  
+                  #Aba Diagnostico Mainpanel                  
+                  
+                  tabPanel("Diagnóstico",
+                           verbatimTextOutput("diag_info")),
+                  
+                  #Aba Classificacao Mainpanel
+                  
+                  tabPanel("Classificação do chão",
+                           rglwidgetOutput("plot_mdt", width = "100%", height = "600px")
+                  )
+      )
+    )
+    
+  )
+)
+
+#Servidor
+server <- function(input, output, session) {
+  lasData <- reactiveVal(NULL)
+  lasSoloClassificado <- reactiveVal(NULL)
+  
+  #Input  
+  observeEvent(input$lasfile, {
+    req(input$lasfile)
+    las <- readLAS(input$lasfile$datapath)
+    lasData(las)
+  })
+  
+  output$arquivo_status <- renderPrint({
+    if (!is.null(lasData())) {
+      cat("Arquivo carregado com sucesso.")
+    } else {
+      cat("Nenhum arquivo carregado.")
+    }
+  })
+  
+  output$diag_info <- renderPrint({
+    req(lasData())
+    
+    withProgress(message = "Carregando diagnóstico...", value = 0, {
+      
+      las <- lasData()
+      header <- las@header
+      ladox <- (header@PHB$`Max X` - header@PHB$`Min X`)
+      ladoy <- (header@PHB$`Max Y` - header@PHB$`Min Y`)
+      area_bbox <- ladox * ladoy
+      alt_bbox <- (header@PHB$`Max Z` - header@PHB$`Min Z`)
+    })
+    
+    # Verifica agrupamento dos pontos de solo por desvio padrão da densidade
+    solo <- filter_poi(las, Classification == 2)
+    if (npoints(solo) > 0) {
+      dens_grid <- grid_density(solo, res = 1)
+      dens_sd <- sd(values(dens_grid), na.rm = TRUE)
+    } else {
+      dens_sd <- NA
+    }
+    
+    # Verificação de normalização com base na mediana de Z do solo
+    if (npoints(solo) > 0) {
+      mediana_z_solo <- median(solo@data$Z, na.rm = TRUE)
+      esta_normalizada <- abs(mediana_z_solo) <= 0.5
+    } else {
+      mediana_z_solo <- NA
+      esta_normalizada <- NA
+    }
+    
+    # Diagnóstico CRS
+    crs_info <- sf::st_crs(las)
+    if (!is.na(crs_info$epsg)) {
+      cat("Sistema de Coordenadas:", crs_info$epsg, "-", crs_info$Name, "\n")
+    } else {
+      cat("Sistema de Coordenadas:", crs_info$proj4string, "\n")
+    }
+    
+    # Verificação da escala das coordenadas
+    med_x <- median(las@data$X, na.rm = TRUE)
+    med_y <- median(las@data$Y, na.rm = TRUE)
+    if (abs(med_x) < 1000 && abs(med_y) < 1000) {
+      cat("Mediana dos valores de X e Y < 1000: Sistema local.\n")
+    } else {
+      cat("Mediana dos valores de X e Y > 1000: Sistema métrico.\n")
+    }
+    
+    # Diagnóstico sobre Intensity
+    tem_intensity <- "Intensity" %in% names(las@data) &&
+      mean(!is.na(las@data$Intensity) & las@data$Intensity > 0, na.rm = TRUE) > 0.95
+    
+    # Diagnóstico sobre retornos
+    tem_return_number <- "ReturnNumber" %in% names(las@data) &&
+      mean(!is.na(las@data$ReturnNumber) & las@data$ReturnNumber > 0) > 0.95
+    tem_number_of_returns <- "NumberOfReturns" %in% names(las@data) &&
+      mean(!is.na(las@data$NumberOfReturns) & las@data$NumberOfReturns > 0) > 0.95
+    
+    # Diagnóstico sobre RGB
+    tem_rgb_valido <- all(c("R", "G", "B") %in% names(las@data)) &&
+      mean(rowSums(las@data[, c("R", "G", "B")]) > 0, na.rm = TRUE) > 0.95
+    
+    simulado_rgb <- FALSE
+    if (tem_rgb_valido) {
+      rgb_vals <- las@data[, c("R", "G", "B")]
+      geom_vars <- las@data[, c("X", "Y", "Z")]
+      cors <- cor(cbind(geom_vars, rgb_vals), use = "complete.obs")
+      cor_geom_rgb <- cors[c("X", "Y", "Z"), c("R", "G", "B")]
+      simulado_rgb <- any(abs(cor_geom_rgb) > 0.85)
+    }
+    
+    # Verificação de classificação
+    if ("Classification" %in% names(las@data)) {
+      classes_presentes <- unique(na.omit(las@data$Classification))
+      esta_classificada <- length(classes_presentes) > 1
+      tem_chao_classificado <- 2 %in% classes_presentes
+    } else {
+      esta_classificada <- FALSE
+      tem_chao_classificado <- FALSE
+    }
+    
+    cat("Total de pontos:", npoints(las), "
+")
+    cat("Lado X bbox (m):", round(ladox, 2), "
+")
+    cat("Lado Y bbox (m):", round(ladoy, 2), "
+")
+    cat("Área bbox (m²):", round(area_bbox, 2), "
+")
+    cat("Altura Z bbox (m):", round(alt_bbox, 2), "
+")
+    cat("
+Intensity válido?", if (tem_intensity) "Sim" else "Não", "\n")
+    
+    cat("
+ReturnNumber válido?", if (tem_return_number) "Sim" else "Não", "
+")
+    cat("NumberOfReturns válido?", if (tem_number_of_returns) "Sim" else "Não", "
+")
+    
+    # Verificações de ScanDirectionFlag, EdgeOfFlightLine e ScanAngleRank
+    tem_scan_direction <- "ScanDirectionFlag" %in% names(las@data) && any(las@data$ScanDirectionFlag != 0, na.rm = TRUE)
+    tem_edge_flag <- "EdgeOfFlightline" %in% names(las@data) && any(las@data$EdgeOfFlightline != 0, na.rm = TRUE)
+    cat("
+ScanDirectionFlag válido?", if (tem_scan_direction) "Sim" else "Não", "\n")
+    cat("EdgeOfFlightline válido?", if (tem_edge_flag) "Sim" else "Não", "\n")
+    tem_scan_angle <- "ScanAngleRank" %in% names(las@data) && any(las@data$ScanAngleRank != 0, na.rm = TRUE)
+    cat("ScanAngleRank válido?", if (tem_scan_angle) "Sim" else "Não", "\n")
+    
+    cat("
+Pontos classificados? ", if (esta_classificada) "Sim" else "Não", "\n")
+    
+    # Estatísticas sobre pontos classificados como chão (2)
+    n_chao <- npoints(solo)
+    dens_chao <- if (!is.null(n_chao) && area_bbox > 0) n_chao / area_bbox else NA
+    cat("Pontos classificados como chão:", n_chao, "
+")
+    cat("Densidade de pontos no chão (pontos/m²):", round(dens_chao, 2), "
+")
+    cat("Desvio-padrão da densidade de pontos no chão:", if (!is.na(dens_sd)) round(dens_sd, 2) else "Não aplicável", "
+")
+    cat("Mediana Z do solo (m):", if (!is.na(mediana_z_solo)) round(mediana_z_solo, 2) else "Não aplicável", "\n")
+    cat("Nuvem normalizada? ", 
+        if (is.na(esta_normalizada)) "Não aplicável" 
+        else if (esta_normalizada) "Sim" else "Não", "\n")    
+    
+    # Diagnóstico PointSourceID: número de fontes distintas
+    if ("PointSourceID" %in% names(las@data)) {
+      fontes_id <- unique(na.omit(las@data$PointSourceID))
+      qtd_fontes <- length(fontes_id)
+    } else {
+      qtd_fontes <- NA
+    }
+    
+    # UserData
+    tem_userdata <- "UserData" %in% names(las@data) && any(!is.na(las@data$UserData) & las@data$UserData != 0)
+    cat("
+UserData preenchido?", if (tem_userdata) "Sim" else "Não", "\n")
+    
+    # Verificação GPSTime
+    tem_gpstime <- "gpstime" %in% names(las@data) &&
+      mean(!is.na(las@data$gpstime) & las@data$gpstime > 0, na.rm = TRUE) > 0.95
+    cat("GPSTime válido?", if (tem_gpstime) "Sim" else "Não", "\n")
+    if (!is.na(qtd_fontes)) {
+      if (qtd_fontes > 1) {
+        cat("PointSourceID: ", qtd_fontes, " fontes diferentes\n")
+      } else {
+        cat("PointSourceID: Apenas uma fonte\n")
+      }
+    } else {
+      cat("PointSourceID: Coluna ausente\n")
+    }
+    
+    # RGB
+    cat("
+Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "
+")
+    cat("RGB parece simulado?", if (simulado_rgb) "Sim" else "Não", "
+")
+  })
+  
+  #Classificação 
+  output$parametros_algo <- renderUI({
+    req(input$algoritmo_solo)
+    
+    if (input$algoritmo_solo == "csf") {
+      fluidRow(
+        column(6,
+               selectInput("sloop_smooth", "sloop_smooth", choices = c(TRUE, FALSE), selected = FALSE),
+               numericInput("class_threshold", "class_threshold", value = 0.5, step = 0.1),
+               numericInput("cloth_resolution", "cloth_resolution", value = 0.5, step = 0.1)
+        ),
+        column(6,
+               selectInput("rigidness", "rigidness", choices = c(1, 2, 3), selected = 1),
+               numericInput("iterations", "iterations", value = 500, min = 1, step = 1),
+               numericInput("time_step", "time_step", value = 0.65, step = 0.01)
+        )
+      )
+    }
+  })
+  
+  observeEvent(input$classificar_solo, {
+    req(lasData())
+    las <- lasData()
+    las_classificado <- classify_ground(
+      las,
+      csf(
+        sloop_smooth = as.logical(input$sloop_smooth),
+        class_threshold = input$class_threshold,
+        cloth_resolution = input$cloth_resolution,
+        rigidness = as.integer(input$rigidness),
+        iterations = as.integer(input$iterations),
+        time_step = input$time_step
+      )
+    )
+    lasSoloClassificado(las_classificado)
+  })
+
+  #Plot 3D Nuvem de Pontos
+  output$plot_mdt <- renderRglwidget({
+    req(lasSoloClassificado())
+    
+    las <- lasSoloClassificado()
+    ground <- filter_poi(las, Classification == 2)
+    not_ground <- filter_poi(las, Classification != 2)
+    
+    open3d()
+    bg3d("white")
+    par3d(windowRect = c(100, 100, 800, 800))
+    
+    cor_chao <- input$cor_chao
+    
+    if (input$mostrar_outros && npoints(not_ground) > 0) {
+      
+      tem_rgb <- all(c("R", "G", "B") %in% names(not_ground@data))
+      
+      if (tem_rgb) {
+        rgb_mat <- not_ground@data[, c("R", "G", "B")]
+        max_rgb <- max(rgb_mat, na.rm = TRUE)
+        divisor <- if (max_rgb > 255) 65535 else 255
+        cores <- rgb(rgb_mat$R / divisor, rgb_mat$G / divisor, rgb_mat$B / divisor)
+        plot3d(not_ground@data[, c("X", "Y", "Z")], col = cores, size = 1, add = FALSE)
+      } else {
+        plot3d(not_ground@data[, c("X", "Y", "Z")], col = "gray", size = 1, add = FALSE)
+      }
+      
+    } else {
+      
+      plot3d(ground@data[, c("X", "Y", "Z")], col = cor_chao, size = 1, add = FALSE)
+      not_ground <- NULL
+    }
+    
+    if (npoints(ground) > 0 && !is.null(not_ground)) {
+      points3d(ground@data[, c("X", "Y", "Z")], col = cor_chao, size = 1)
+    }
+    
+    rglwidget()
+  })
+  
+  output$diag_solo_classificado <- renderUI({
+    req(input$aba_ativa == "Classificação do chão")
+    req(lasSoloClassificado())
+    
+    solo <- filter_poi(lasSoloClassificado(), Classification == 2)
+    if (npoints(solo) == 0) return(tags$div("Nenhum ponto classificado como chão."))
+    
+    # Estatísticas básicas
+    total <- npoints(solo)
+    zmax <- max(solo@data$Z, na.rm = TRUE)
+    zmin <- min(solo@data$Z, na.rm = TRUE)
+    amplitude <- zmax - zmin
+    
+    # Cálculo da densidade e seu desvio padrão
+    dens <- grid_density(solo, res = 1)
+    media <- mean(values(dens), na.rm = TRUE)
+    desvio <- sd(values(dens), na.rm = TRUE)
+    
+    fluidRow(
+      column(6,
+             strong("Total de pontos:"), br(), total, br(), br(),
+             strong("Z máx:"), br(), round(zmax, 2), br(), br(),
+             strong("Z mín:"), br(), round(zmin, 2)
+      ),
+      column(6,
+             strong("Amplitude Z:"), br(), round(amplitude, 2), br(), br(),
+             strong("Média/m²:"), br(), round(media, 2), br(), br(),
+             strong("Desvio/m²:"), br(), round(desvio, 2)
+      )
+    )
+  })
+  
+  observeEvent(input$aplicar_classificacao, {
+    req(lasSoloClassificado())
+    lasData(lasSoloClassificado())
+  })
+  
+}
+
+shinyApp(ui, server)
