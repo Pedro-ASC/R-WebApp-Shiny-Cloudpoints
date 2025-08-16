@@ -1,15 +1,19 @@
 # App Shiny: Diagnóstico e Tratamento de Nuvens de Pontos LiDAR
 
-#options(shiny.maxRequestSize = 500 * 1024^2)  # Limite de upload: 500 MB
-#library(sf)
-#library(shiny)
-#library(lidR)
-#library(rgl)
-#library(DT)
-#library(shinyBS)  # Para colapsar/expandir explicações
-#library(raster)
+options(shiny.maxRequestSize = 500 * 1024^2)
+library(sf)
+library(shiny)
+library(lidR)
+library(rgl)
+library(DT)
+library(shinyBS) 
+library(raster)
+library(RMCC)
 
+##########
 #Interface
+##########
+
 ui <- fluidPage(
   tags$style(HTML("
     .panel-group {
@@ -25,12 +29,21 @@ ui <- fluidPage(
     .panel-title > a:hover {
       text-decoration: underline;
     }
+      .plot-border {
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 5px;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
   ")),
   titlePanel("Diagnóstico de Nuvens de Pontos LiDAR"),
   sidebarLayout(
     sidebarPanel(
       
+      #########################
       #Aba Diagnóstico Sidebar      
+      ##########################
       
       conditionalPanel(
         condition = "input.aba_ativa == 'Diagnóstico'",
@@ -54,10 +67,10 @@ ui <- fluidPage(
                    bsCollapsePanel("EdgeOfFlightline ▼", HTML("<ul><li>Marca pontos oriundos da borda (edge) do scanemento com valor '1'.</li>
                                                               <li>Recebe o valor 0 quando não está na borda ou não é compatível com o equipamento (Ex: Scanner 360°)</li></ul>")),
                    bsCollapsePanel("Classification ▼", HTML("<ul><li>Classe atribuída ao ponto. Exemplos:
-                                                        <ul><li>0 ou 1  <- Não classificado</li>
+                                                        <ul><li>0 ou 1 <- Não classificado</li>
                                                         <li>2 <- Chão</li>
                                                         <li>3, 4 ou 5 <- Vegetação</li>
-                                                        <li>7 <- Ruído</li></ul></li></ul>")),
+                                                        <li>7 ou 18 <- Ruído</li></ul></li></ul>")),
                    bsCollapsePanel("ScanAngleRank ▼", HTML("<ul><li>Ângulo do feixe de escaneamento no momento da medição.</li>
                                                        <li>Recebe valores de -90 a 90 graus.</li></ul>")),
                    bsCollapsePanel("UserData ▼", HTML("<ul><li>Campo de uso livre destinado ao usuário.</li></ul>")),
@@ -69,7 +82,65 @@ ui <- fluidPage(
         )
       ),
       
+      ############################
+      #Aba Classificação de Ruídos
+      ############################
+      
+      conditionalPanel(
+        condition = "input.aba_ativa == 'Classificação de ruídos'",
+        
+        h4("1. Escolha o algoritmo de classificação"),
+        radioButtons("algoritmo_ruidos", label = NULL,
+                     choices = c("SOR" = "sor", "IVF" = "ivf"),
+                     selected = "sor"),
+        
+        h4("2. Parâmetros do algoritmo"),
+        uiOutput("parametros_ruidos"),
+        
+        checkboxInput("mostrar_naoruidos", "Mostrar pontos não ruído", value = TRUE),
+        fluidRow(
+          column(6,
+                 selectInput("cor_ruidos", "Cor pontos ruído",
+                             choices = c("Verde" = "green", "Azul" = "blue", "Vermelho" = "red", "Amarelo" = "yellow"),
+                             selected = "green")
+          ),
+          column(6,
+                 selectInput("cor_nao_ruidos", "Cor pontos não ruído:",
+                             choices = c("RGB" = "rgb", "Cinza" = "gray","Preto" = "black",
+                                         "Azul" = "blue","Amarelo" = "yellow"),
+                             selected = "rgb"))
+        ),
+        
+        actionButton("classificar_ruidos", "Classificar"),
+        hr(),
+        
+        actionButton("aplicar_classificacao", "Salvar classificação"),
+        
+        h4("Sobre os algoritmos"),
+        tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", target = "_blank", "CRAN lidR pag. 24 'Classify points'"),
+        bsCollapse(id = "explicacoes_algoritmos_ruidos", open = NULL,
+                   
+                   bsCollapsePanel("SOR (Statistical Outliers Removal) ▼", 
+                                   HTML("<span style='font-size:smaller;'><ul>
+                        <li>Calcula a distância média e desvio padrão de 'k' pontos de todos os pontos da nuvem.</li>
+                        <li>Qualquer ponto com distância média maior que o limite é classificado como ruído</li>
+                        <li>Se 'quantile' igual 'FALSE', então:
+                        <ul><li>limite = distância média + ('m' * desvio padrão)</li></ul></li>
+                        <li>Se 'quantile' igual 'TRUE', então:
+                        <ul><li>limite = quantile(distâncias, probs = 'm')</li>
+                        <li>Ou seja, 'm' se torna um limite quantilico</li></ul></li>
+                        </ul></span>")),
+                   bsCollapsePanel("IVF (Isolated Voxels Filter) ▼", 
+                                   HTML("<span style='font-size:smaller;'><ul>
+                        <li>A nuvem de pontos é dividida em voxels cúbicos com lado igual a 'res'.</li>
+                        <li>Para cada ponto é calculado quantos outros pontos estão presentes nos 27 voxels ao redor (3x3x3)</li>
+                        <li>Se o número de pontos for menor que 'n' então o ponto em questão é considerado ruído.</li>
+                        </ul></span>")))
+      ),
+      
+      ##################################
       #Aba Classificaçao do chao Sidebar      
+      ##################################
       
       conditionalPanel(
         condition = "input.aba_ativa == 'Classificação do chão'",
@@ -82,23 +153,28 @@ ui <- fluidPage(
         h4("2. Parâmetros do algoritmo"),
         uiOutput("parametros_algo"),
         
-        actionButton("classificar_solo", "Classificar solo"),
-        hr(),
+        checkboxInput("mostrar_outros", "Mostrar pontos não chão", value = TRUE),
         
-        actionButton("aplicar_classificacao", "Aplicar classificação ao LAS"),
-        
-        checkboxInput("mostrar_outros", "Mostrar pontos não classificados como chão", value = TRUE),
-        
-        selectInput("cor_chao", "Cor dos pontos classificados como chão:",
-                    choices = c("Verde" = "green", "Azul" = "blue", "Vermelho" = "red", "Amarelo" = "yellow"),
-                    selected = "green"),
-        
-        wellPanel(
-          h4("Diagnóstico dos pontos no chão"),
-          uiOutput("diag_solo_classificado")
+        fluidRow(
+          column(6,
+                 selectInput("cor_chao", "Cor pontos chão:",
+                             choices = c("Verde" = "green", "Azul" = "blue", "Vermelho" = "red", "Amarelo" = "yellow"),
+                             selected = "green")
+          ),
+          column(6,
+                 selectInput("cor_nao_chao", "Cor pontos não chão:",
+                             choices = c("RGB" = "rgb",
+                                         "Cinza" = "gray","Preto" = "black","Azul" = "blue","Amarelo" = "yellow"),
+                             selected = "rgb"))
         ),
         
+        actionButton("classificar_solo", "Classificar"),
+        hr(),
+        
+        actionButton("aplicar_classificacao", "Salvar classificação"),
+        
         h4("Sobre os algoritmos"),
+        tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", target = "_blank", "CRAN lidR pag. 24 'Classify points'"),
         bsCollapse(id = "explicacoes_algoritmos", open = NULL,
                    
                    bsCollapsePanel("CSF (Cloth Simulation Filter) ▼", HTML("<span style='font-size:smaller;'><ul>
@@ -119,35 +195,67 @@ ui <- fluidPage(
   <p><a href='https://www.mdpi.com/2072-4292/8/6/501' target='_blank'>Zhang et al., 2016</a></p>
   </span>")),
                    
-                   bsCollapsePanel("PMF (Progressive Morphological Filter) ▼", HTML("<ul>
+                   bsCollapsePanel("PMF (Progressive Morphological Filter) ▼", HTML("<span style='font-size:smaller;'><ul>
     <li>Baseado em operações morfológicas aplicadas progressivamente para remover vegetação e preservar o solo.</li>
+    <li>Ou seja, cria-se uma janela que cresce linear ou exponencialmente, suaviza a superfície e
+        calcula a diferença entre o ponto original e a superfície estimada.</li>
+    <li>Se a distância entre o ponto original e a superfície é menor que o threshold, então é classificado como chão.</li>
     <li>É adequado para áreas planas e topografia simples.</li>
-    <li>É sensível à escolha do raio estrutural e ao crescimento incremental.</li>
-  </ul>")),
+    <li>É sensível à escolha do tamanho da janela e a distância aceitável entre ponto e superfície.</li>
+    <li><strong>Argumentos</strong>:
+    <ul><li><em>Windows size(ws)</em>: Numérico. Sequência de valores. Área da janela na unidade de medida da nuvem.</li>
+    <li><em>Threshold</em>: Numérico. Sequência de valores (igual ao ws). Distância máxima entre superfície e ponto na unidade de medida da nuvem</li></ul>
+    <li>Os parâmetros podem ser calculados pela função 'util_makeZhangParam' disponível em lidR.</ul>
+    <p><a href='https://www.researchgate.net/publication/3203162_A_progressive_morphological_filter_for_removing_nonground_measurements_from_airborne_LIDAR_data' 
+      target='_blank'>Zhang et al., 2013</a></p><span>")),
                    
-                   bsCollapsePanel("MCC (Multiscale Curvature Classification) ▼", HTML("<ul>
+                   bsCollapsePanel("MCC (Multiscale Curvature Classification) ▼", HTML("<span style='font-size:smaller;'<ul>
     <li>Utiliza a curvatura local em múltiplas escalas para distinguir pontos de solo e vegetação.</li>
-    <li>Funciona bem em áreas com relevo suave e estruturas pequenas.</li>
-    <li>Pode ser mais lento por envolver análise multiescala.</li>
-  </ul>"))
+    <li>Funciona bem em áreas com relevo acidentado.</li>
+    <li>Opção quando CSF e PMF não funcionam bem, mas é mais lento por envolver análise multiescala.</li>
+    <li><strong>Argumentos</strong>:
+    <ul><li><em>Scale parameter (s)</em>: Numérico. Define o tamanho da janela que avalia a curvatura. Pontos de nuvem mais densos o 's' deve ser menor, nuvens mais esparsas 's' maior.</li>
+    <li><em>Curvature threshold (t)</em>: Numérico. Valor máximo de curvatura para ser considerado chão.</li></ul>
+  </ul>
+    <p><a href='https://www.researchgate.net/publication/3204849_A_Multiscale_Curvature_Algorithm_for_Classifying_Discrete_Return_LiDAR_in_Forested_Environments'
+      target='_blank'>Evans, Jeffrey S.; Hudak, Andrew T. 2007.</a></p></span>"))
                    
         ),
-        hr()    
       )
     ),
     
     mainPanel(
       tabsetPanel(id = "aba_ativa",
                   
+                  ##########################
                   #Aba Diagnostico Mainpanel                  
+                  ##########################
                   
                   tabPanel("Diagnóstico",
                            verbatimTextOutput("diag_info")),
                   
-                  #Aba Classificacao Mainpanel
+                  ##################################
+                  #Aba Classificaçao Ruido Mainpanel
+                  ##################################
+                  
+                  tabPanel("Classificação de ruídos",
+                           div(class = "plot-border", rglwidgetOutput("plot_ruidos",
+                                                                      width = "100%", height = "600px")),
+                           br(),
+                           h4("Diagnósticos dos pontos ruído"),
+                           uiOutput("diag_ruidos")
+                  ),
+                  
+                  #################################
+                  #Aba Classificacao Chão Mainpanel
+                  #################################
                   
                   tabPanel("Classificação do chão",
-                           rglwidgetOutput("plot_mdt", width = "100%", height = "600px")
+                           div(class = "plot-border", rglwidgetOutput("plot_mdt", 
+                                                                      width = "100%", height = "600px")),
+                           br(),
+                           h4("Diagnóstico dos pontos chão"),
+                           uiOutput("diag_solo_classificado")
                   )
       )
     )
@@ -155,10 +263,18 @@ ui <- fluidPage(
   )
 )
 
+#########
 #Servidor
+#########
+
 server <- function(input, output, session) {
   lasData <- reactiveVal(NULL)
   lasSoloClassificado <- reactiveVal(NULL)
+  lasRuidos <- reactiveVal(NULL)
+  
+  ################
+  #Aba Diagnóstico
+  ################
   
   #Input  
   observeEvent(input$lasfile, {
@@ -336,7 +452,129 @@ Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "
 ")
   })
   
-  #Classificação 
+  ########################
+  #Aba Classificação ruido
+  ########################
+  output$parametros_ruidos <- renderUI({
+    req(input$algoritmo_ruidos)
+    
+    if (input$algoritmo_ruidos == "sor") {
+      fluidRow(
+        column(6,
+               br(),
+               numericInput("k", "Número de vizinhos (k)", value = 10),
+               numericInput("m", "Multiplicador da máxima distância (m)", value = 3)),
+        column(6,
+               selectInput("quantile", "Quantílico ao invés de Desvio-Padrão", 
+                           choices = c(TRUE, FALSE), selected = FALSE))
+      )
+    } else if (input$algoritmo_ruidos == "ivf") {
+      fluidRow(
+        column(6,
+               br(),
+               numericInput("res", "Resolução dos voxels", value = 5)),
+        column(6,
+               numericInput("n", "Quantidade máxima de pontos próximos", value = 3))
+      )
+    }
+  })
+  
+  observeEvent(input$classificar_ruidos, {
+    req(lasData())
+    las <- lasData()
+    
+    if (input$algoritmo_ruidos == "sor") {
+      las_ruidos <- classify_noise(
+        las,
+        sor(
+          k = input$k,
+          m = input$m,
+          quantile = as.logical(input$quantile)
+        )
+      )
+    } else if (input$algoritmo_ruidos == "ivf") {
+      las_ruidos <- classify_noise(
+        las,
+        ivf(
+          res = input$res,
+          n = input$n
+        )
+      )
+    }
+    lasRuidos(las_ruidos)
+  })
+  
+  output$plot_ruidos <- renderRglwidget({
+    req(lasRuidos())
+    
+    las <- lasRuidos()
+    ruidos <- filter_poi(las, Classification == 18)
+    nao_ruidos <- filter_poi(las, Classification != 18)
+    
+    open3d()
+    bg3d("white")
+    par3d(windowRect = c(100, 100, 800, 800))
+    
+    cor_ruidos <- input$cor_ruidos
+    
+    if (input$mostrar_naoruidos && npoints(nao_ruidos) > 0) {
+      tem_rgb <- all(c("R", "G", "B") %in% names(nao_ruidos@data))
+      
+      if (input$cor_nao_ruidos == "rgb" && tem_rgb) {
+        rgb_mat <- nao_ruidos@data[, c("R", "G", "B")]
+        max_rgb <- max(rgb_mat, na.rm = TRUE)
+        divisor <- if (max_rgb > 255) 65535 else 255
+        cores <- rgb(rgb_mat$R / divisor, rgb_mat$G / divisor, rgb_mat$B / divisor)
+        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = cores, size = 1, add = FALSE)
+      } else {
+        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = input$cor_nao_ruidos, size = 1, add = FALSE)
+      }
+      
+    } else {
+      
+      plot3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1, add = FALSE)
+      nao_ruidos <- NULL
+    }
+    
+    if (npoints(ruidos) > 0 && !is.null(nao_ruidos)) {
+      points3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1)
+    }
+    
+    rglwidget()
+  })
+  
+  output$diag_ruidos <- renderUI({
+    req(input$aba_ativa == "Classificação de ruídos")
+    req(lasRuidos())
+    
+    ruidos <- filter_poi(lasRuidos(), Classification == 18)
+    if (npoints(ruidos) == 0) return(tags$div("Nenhum ponto classificado como ruído."))
+    
+    # Estatísticas básicas
+    total <- npoints(ruidos)
+    perc <- (total / npoints(lasRuidos())) * 100
+    perc_formatado <- sprintf("%.2f%%", perc)
+    
+    fluidRow(
+      column(6,
+             strong("Total de pontos:"), br(), total, br(), br()
+      ),
+      column(6,
+             strong("Percentual:"), br(), perc_formatado, br(), br()
+      )
+    )
+  })
+  
+  observeEvent(input$aplicar_classificacao, {
+    req(lasRuidos())
+    las_sem_ruido <- filter_poi(lasRuidos(), Classification != 18)
+    lasData(las_sem_ruido)
+  })
+  
+  #######################      
+  #Aba Classificação Chão
+  #######################
+  
   output$parametros_algo <- renderUI({
     req(input$algoritmo_solo)
     
@@ -353,27 +591,88 @@ Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "
                numericInput("time_step", "time_step", value = 0.65, step = 0.01)
         )
       )
+    } else if (input$algoritmo_solo == "pmf") {
+      fluidRow(
+        column(6,
+               textInput("pmf_ws", "Tamanho Janela (ws)",
+                         value = "3,6,9,12")
+        ),
+        column(6,
+               textInput("pmf_th", "Limite (th)",
+                         value = "0.1,0.3,0.5,1")
+        )
+      )
+    } else if (input$algoritmo_solo == "mcc") {
+      fluidRow(
+        column(6,
+               textInput("mcc_s", "Tamanho da janela (s)",
+                         value = 1.5)),
+        column(6,
+               textInput("mcc_t", "Limite de curvatura (t)",
+                         value = 0.3))
+      )
     }
   })
+  
+  parse_seq <- function(txt) {
+    vals <- unlist(strsplit(txt, "[,;\\s]+"))   # aceita vírgula, ponto-e-vírgula ou espaços
+    vals <- trimws(vals)
+    vals <- vals[vals != ""]
+    nums <- as.numeric(vals)
+    if (any(is.na(nums))) stop("Sequência contém valores não numéricos")
+    nums
+  }
   
   observeEvent(input$classificar_solo, {
     req(lasData())
     las <- lasData()
-    las_classificado <- classify_ground(
-      las,
-      csf(
-        sloop_smooth = as.logical(input$sloop_smooth),
-        class_threshold = input$class_threshold,
-        cloth_resolution = input$cloth_resolution,
-        rigidness = as.integer(input$rigidness),
-        iterations = as.integer(input$iterations),
-        time_step = input$time_step
+    
+    if (input$algoritmo_solo == "csf") {
+      
+      las_classificado <- classify_ground(
+        las,
+        csf(
+          sloop_smooth = as.logical(input$sloop_smooth),
+          class_threshold = input$class_threshold,
+          cloth_resolution = input$cloth_resolution,
+          rigidness = as.integer(input$rigidness),
+          iterations = as.integer(input$iterations),
+          time_step = input$time_step
+        )
       )
-    )
+      
+    } else if (input$algoritmo_solo == "pmf") {
+      
+      ws_vals <- tryCatch(parse_seq(input$pmf_ws),
+                          error = function(e) { showNotification(paste("Erro em ws:", e$message), type = "error"); return(NULL) })
+      if (is.null(ws_vals)) return()
+      
+      th_vals <- tryCatch(parse_seq(input$pmf_th),
+                          error = function(e) { showNotification(paste("Erro em th:", e$message), type = "error"); return(NULL) })
+      if (is.null(th_vals)) return()
+      
+      # se o usuário forneceu apenas 1 threshold, repetir para cada ws
+      if (length(th_vals) == 1) {
+        th_vals <- rep(th_vals, length(ws_vals))
+      }
+      
+      if (length(th_vals) != length(ws_vals)) {
+        showNotification("Número de thresholds deve ser 1 ou igual ao comprimento de ws.", type = "error")
+        return()
+      }
+      
+      las_classificado <- classify_ground(las, pmf(ws = ws_vals, th = th_vals))
+    } else if (input$algoritmo_solo == "mcc") {
+      las_classificado <- classify_ground(
+        las, mcc(
+          s = as.numeric(input$mcc_s),
+          t = as.numeric(input$mcc_t)
+        )
+      )
+    }
     lasSoloClassificado(las_classificado)
   })
-
-  #Plot 3D Nuvem de Pontos
+  
   output$plot_mdt <- renderRglwidget({
     req(lasSoloClassificado())
     
@@ -391,14 +690,14 @@ Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "
       
       tem_rgb <- all(c("R", "G", "B") %in% names(not_ground@data))
       
-      if (tem_rgb) {
+      if (input$cor_nao_chao == "rgb" && tem_rgb) {
         rgb_mat <- not_ground@data[, c("R", "G", "B")]
         max_rgb <- max(rgb_mat, na.rm = TRUE)
         divisor <- if (max_rgb > 255) 65535 else 255
         cores <- rgb(rgb_mat$R / divisor, rgb_mat$G / divisor, rgb_mat$B / divisor)
         plot3d(not_ground@data[, c("X", "Y", "Z")], col = cores, size = 1, add = FALSE)
       } else {
-        plot3d(not_ground@data[, c("X", "Y", "Z")], col = "gray", size = 1, add = FALSE)
+        plot3d(not_ground@data[, c("X", "Y", "Z")], col = input$cor_nao_chao, size = 1, add = FALSE)
       }
       
     } else {
@@ -413,6 +712,7 @@ Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "
     
     rglwidget()
   })
+  
   
   output$diag_solo_classificado <- renderUI({
     req(input$aba_ativa == "Classificação do chão")
