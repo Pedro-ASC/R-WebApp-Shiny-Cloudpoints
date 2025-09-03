@@ -9,6 +9,9 @@ library(DT)
 library(shinyBS) 
 library(raster)
 library(RMCC)
+library(leaflet)
+library(shinyalert)
+library(shinycssloaders)
 
 ##########
 #Interface
@@ -121,7 +124,7 @@ ui <- fluidPage(
         
         actionButton("classificar_ruidos", "Classificar"),
         hr(),
-  
+        
         actionButton("aplicar_classificacao", "Salvar classificação"),
         actionButton("aplicar_classificacao_s_r", "Excluir ruídos"),
         
@@ -212,7 +215,7 @@ ui <- fluidPage(
   </span>")),
                    
                    bsCollapsePanel("PMF (Progressive Morphological Filter) ▼", 
-                   HTML("<span style='font-size:smaller;'><ul>
+                                   HTML("<span style='font-size:smaller;'><ul>
     <li>Baseado em operações morfológicas aplicadas progressivamente para remover vegetação e preservar o solo.</li>
     <li>Ou seja, cria-se uma janela que cresce linear ou exponencialmente, suaviza a superfície e
         calcula a diferença entre o ponto original e a superfície estimada.</li>
@@ -227,7 +230,7 @@ ui <- fluidPage(
       target='_blank'>Zhang et al., 2013</a></p><span>")),
                    
                    bsCollapsePanel("MCC (Multiscale Curvature Classification) ▼", 
-                   HTML("<span style='font-size:smaller;'<ul>
+                                   HTML("<span style='font-size:smaller;'<ul>
     <li>Utiliza a curvatura local em múltiplas escalas para distinguir pontos de solo e vegetação.</li>
     <li>Funciona bem em áreas com relevo acidentado.</li>
     <li>Opção quando CSF e PMF não funcionam bem, mas é mais lento por envolver análise multiescala.</li>
@@ -237,49 +240,50 @@ ui <- fluidPage(
   </ul>
     <p><a href='https://www.researchgate.net/publication/3204849_A_Multiscale_Curvature_Algorithm_for_Classifying_Discrete_Return_LiDAR_in_Forested_Environments'
       target='_blank'>Evans, Jeffrey S.; Hudak, Andrew T. 2007.</a></p></span>")))
-                   
-        ),
-
-        ##########################
-        #Aba Normalização Sidebar#      
-        ##########################
+        
+      ),
       
-        conditionalPanel(
-          condition = "input.aba_ativa == 'Normalização'",
-          
-          h4("Algoritmo para criação do MDT"),
-          radioButtons("algoritmo_mdt", label = NULL,
-                       choices = c("IDW" = "idw", "Kriging" = "kriging","TIN" = "tin"),
-                       selected = "tin"),
-          
-          h4("Parâmetros"),
-          uiOutput("parametros_mdt"),
-          
-          actionButton("gerar_mdt", "Gerar MDT"),
-          hr(),
-          
-          actionButton("aplicar_normalizacao", "Aplicar normalização"),
-          hr(),
-          
-          h4("Sobre os algoritmos"),
-          tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", 
-                 target = "_blank", "CRAN lidR pag. 34 'dtm_*'"),
-          bsCollapse(id = "explicacoes_algoritmos_norm", open = NULL,
-                     bsCollapsePanel("Modelo Digital do Terreno (MDT) ▼", 
-                                     HTML("<span style='font-size:smaller;'><ul>
+      ##########################
+      #Aba Normalização Sidebar#      
+      ##########################
+      
+      conditionalPanel(
+        condition = "input.aba_ativa == 'Normalização'",
+        
+        h4("Algoritmo para criação do MDT"),
+        radioButtons("algoritmo_mdt", label = NULL,
+                     choices = c("IDW" = "idw","TIN" = "tin"),
+                     selected = "idw"),
+        
+        h4("Parâmetros"),
+        uiOutput("parametros_mdt"),
+        
+        actionButton("gerar_mdt", "Gerar MDT"),
+        hr(),
+        
+        actionButton("aplicar_normalizacao", "Aplicar normalização"),
+        hr(),
+        
+        h4("Sobre os algoritmos"),
+        tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", 
+               target = "_blank", "CRAN lidR pag. 34 'dtm_*'"),
+        bsCollapse(id = "explicacoes_algoritmos_norm", open = NULL,
+                   bsCollapsePanel("Modelo Digital do Terreno (MDT) ▼", 
+                                   HTML("<span style='font-size:smaller;'><ul>
         <li>Representação matemática e digital da superfície do solo, ou seja, exclui-se objetos sobre o mesmo.</li>
         <li>Raster onde cada célula contém a altitude do terreno naquele ponto.</li>
+        <li>Resolução da malha (grid) = medida do lado do pixel.</li>
         <li>É gerado a partir de pontos classificados como chão ('2')</li>
                           </ul></span>")),
-                     bsCollapsePanel("Normalização ▼", 
-                                     HTML("<span style='font-size:smaller;'><ul>
+                   bsCollapsePanel("Normalização ▼", 
+                                   HTML("<span style='font-size:smaller;'><ul>
         <li>Geralmente a altura ('Z') dos pontos são calculados em altitude acima do nível médio do mar.</li>
         <li>A normalização recalcula essa altitude para absoluta, ou seja, em relação ao terreno.</li>
         <li>Z<i>normalizado</i> = Z<i>original</i> - Z<i>terreno</i></li>
         <li>Facilita a retirada de métricas.</li>
                           </ul></span>")),
-                     bsCollapsePanel("IDW (Inverse Distance Weighting) ▼", 
-                                     HTML("<span style='font-size:smaller;'><ul>
+                   bsCollapsePanel("IDW (Inverse Distance Weighting) ▼", 
+                                   HTML("<span style='font-size:smaller;'><ul>
         <li>Este algoritmo é composto por dois modelos: KNN e IDW.</li>
         <li>KNN = K-Nearest Neighbour = Procura os 'k' pontos chão mais próximos de todos os pontos chão da nuvem.</li>
         <li>IDW = Inverse Distance Weighting = Calcula a média ponderada da distância do ponto até os 'k' pontos e dá mais peso aos pontos mais próximos.</li>
@@ -289,13 +293,19 @@ ui <- fluidPage(
         <li><em>p</em>: Numérico. Expoente da ponderação da distância inversa.</li>
         <li><em>rmax</em>: Numérico. Raio máximo de busca dos 'k' vizinhos.</li></ul>
                           </ul></span>")),
-                     bsCollapsePanel("TIN (Triangulated Irregular Network) ▼",
-                                     HTML("<span style='font-size:smaller;'><ul>
-        <li></li>
+                   bsCollapsePanel("TIN (Triangulated Irregular Network) ▼",
+                                   HTML("<span style='font-size:smaller;'><ul>
+        <li>Usa a Triangulação de Delaunay sobre os pontos chão com interpolação linear.</li>
+        <li>Triangulação de Delaunay = Os pontos são os vértices do triângulo. Garante que nenhum outro ponto, fora os vértices, estejam dentro do
+        circulo circunstrito ao triângulo.</li>
+        <li>Interpolação linear = Método matemático que estima uma valor desconhecido entre dois pontos conectado-os com uma linha reta.</li>
+        <li>A limitação deste algoritmo se encontra nas bordas da nuvem de pontos, onde podem sobrar pontos que não fecham triângulos. Quando isso acontece é possível usar o parâmetro
+        'extrapolate' que usa o algoritmo IDW para preencher o que resta.</li>
+        <li>Não há parâmetros para esse algoritmo.</li>
                         </ul></span>")),
-                     bsCollapsePanel("Kriging (Krigagem Universal) ▼", 
-                                     HTML("<span style='font-size:smaller;'><ul>
-        <li>Método difícil mas avançado de interpolação espacial.</li>
+                   bsCollapsePanel("Kriging (Krigagem Universal) ▼", 
+                                   HTML("<span style='font-size:smaller;'><ul>
+        <li>Método complexo e avançado de interpolação espacial.</li>
         <li>Krigagem = Interpolação geoestatística baseada na dependência espacial entre os dados.</li>
         <li>Universal = Assume que a média não é constante na área mas que varia segundo uma tendência.</li>
         <li>Usa um variograma ajustado para estimar a semelhança entre os pontos em função da distância.</li>
@@ -323,8 +333,9 @@ ui <- fluidPage(
                   
                   tabPanel("Classificação de ruídos",
                            div(class = "plot-border", 
-                               rglwidgetOutput("plot_ruidos",
-                                                width = "100%", height = "600px")),
+                               withSpinner(rglwidgetOutput("plot_ruidos",
+                                               width = "100%", height = "600px"), 
+                                           type = 6, color = "green")),
                            br(),
                            h4("Diagnósticos dos pontos ruído"),
                            uiOutput("diag_ruidos")
@@ -336,8 +347,9 @@ ui <- fluidPage(
                   
                   tabPanel("Classificação do chão",
                            div(class = "plot-border", 
-                               rglwidgetOutput("plot_mdt", 
-                                              width = "100%", height = "600px")),
+                               withSpinner(rglwidgetOutput("plot_mdt", 
+                                               width = "100%", height = "600px"), 
+                                           type = 6, color = "green")),
                            br(),
                            h4("Diagnóstico dos pontos chão"),
                            uiOutput("diag_solo_classificado")
@@ -347,10 +359,12 @@ ui <- fluidPage(
                   #Aba Normalização Mainpanel#
                   ############################
                   
-                  tabPanel("Normalização")
+                  tabPanel("Normalização",
+                           withSpinner(rglwidgetOutput("plot_mdtn", 
+                                                       height = "600px"), 
+                                       type = 6, color = "green"))
       )
     )
-    
   )
 )
 
@@ -362,6 +376,7 @@ server <- function(input, output, session) {
   lasData <- reactiveVal(NULL)
   lasSoloClassificado <- reactiveVal(NULL)
   lasRuidos <- reactiveVal(NULL)
+  mdt <- reactiveVal(NULL)
   
   ################
   #Aba Diagnóstico
@@ -387,6 +402,13 @@ server <- function(input, output, session) {
     las <- lasData()
     las$Classification <- as.integer(0)
     lasData(las)
+    
+    shinyalert(
+      title = "Classificação limpa!",
+      type = "success",
+      timer = 1500,
+      showConfirmButton = FALSE
+    )
   })
   
   output$diag_info <- renderPrint({
@@ -406,7 +428,6 @@ server <- function(input, output, session) {
       xoffset <- header@PHB$`X offset`
       yoffset <- header@PHB$`Y offset`
       zoffset <- header@PHB$`Z offset`
-    })
     
     # Verifica agrupamento dos pontos de solo por desvio padrão da densidade
     solo <- filter_poi(las, Classification == 2)
@@ -426,8 +447,8 @@ server <- function(input, output, session) {
       esta_normalizada <- NA
     }
     
-      cat("### XYZ ### \n")
-      
+    cat("### XYZ ### \n")
+    
     # Diagnóstico CRS
     crs_info <- sf::st_crs(las)
     if (!is.na(crs_info$epsg)) {
@@ -545,8 +566,6 @@ server <- function(input, output, session) {
     # Verificação GPSTime
     tem_gpstime <- "gpstime" %in% names(las@data) &&
       mean(!is.na(las@data$gpstime) & las@data$gpstime > 0, na.rm = TRUE) > 0.95
-    cat("### GPS Time ### \n")
-    cat("Válido?", if (tem_gpstime) "Sim" else "Não", "\n \n")
     
     cat("### Point Source ID ### \n")
     if (!is.na(qtd_fontes)) {
@@ -558,16 +577,19 @@ server <- function(input, output, session) {
     } else {
       cat("PointSourceID: Coluna ausente \n \n")
     }
+    cat("### GPS Time ### \n")
+    cat("Válido?", if (tem_gpstime) "Sim" else "Não", "\n \n")
     
     # RGB
     cat("### RGB ### \n")
     cat("Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "\n")
     if (tem_rgb_valido) {cat("RGB parece simulado?", if (simulado_rgb) "Sim" else "Não", "\n")}
+    })
   })
   
-  ########################
-  #Aba Classificação ruido
-  ########################
+  #########################
+  #Aba Classificação ruido#
+  #########################
   output$parametros_ruidos <- renderUI({
     req(input$algoritmo_ruidos)
     
@@ -589,7 +611,7 @@ server <- function(input, output, session) {
       )
     }
   })
-  
+    
   observeEvent(input$classificar_ruidos, {
     req(lasData())
     las <- lasData()
@@ -600,7 +622,7 @@ server <- function(input, output, session) {
         sor(
           k = input$k,
           m = input$m,
-          quantile = input$quantile
+          quantile = as.logical(input$quantile)
         )
       )
     } else if (input$algoritmo_ruidos == "ivf") {
@@ -621,6 +643,10 @@ server <- function(input, output, session) {
     las <- lasRuidos()
     ruidos <- filter_poi(las, Classification == 18)
     nao_ruidos <- filter_poi(las, Classification != 18)
+    bbox <- apply(las@data[, c("X", "Y", "Z")], 2, range)
+    xlim <- bbox[,"X"]
+    ylim <- bbox[,"Y"]
+    zlim <- bbox[,"Z"]
     
     open3d()
     bg3d("white")
@@ -636,14 +662,17 @@ server <- function(input, output, session) {
         max_rgb <- max(rgb_mat, na.rm = TRUE)
         divisor <- if (max_rgb > 255) 65535 else 255
         cores <- rgb(rgb_mat$R / divisor, rgb_mat$G / divisor, rgb_mat$B / divisor)
-        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = cores, size = 1, add = FALSE)
+        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = cores, size = 1, 
+               add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
       } else {
-        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = input$cor_nao_ruidos, size = 1, add = FALSE)
+        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = input$cor_nao_ruidos, 
+               size = 1, add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
       }
       
     } else {
       
-      plot3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1, add = FALSE)
+      plot3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1, 
+             add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
       nao_ruidos <- NULL
     }
     
@@ -675,16 +704,31 @@ server <- function(input, output, session) {
       )
     )
   })
+
   
   observeEvent(input$aplicar_classificacao, {
     req(lasRuidos())
     lasData(lasRuidos())
+    
+    shinyalert(
+      title = "Classificação salva!",
+      type = "success",
+      timer = 1500,
+      showConfirmButton = FALSE
+    )
   }) 
   
   observeEvent(input$aplicar_classificacao_s_r, {
     req(lasRuidos())
     las_sem_ruido <- filter_poi(lasRuidos(), Classification != 18)
     lasData(las_sem_ruido)
+    
+    shinyalert(
+      title = "Ruídos excluídos!",
+      type = "success",
+      timer = 1500,
+      showConfirmButton = FALSE
+    )
   })
   
   #######################      
@@ -738,7 +782,7 @@ server <- function(input, output, session) {
     if (any(is.na(nums))) stop("Sequência contém valores não numéricos")
     nums
   }
-  
+    
   observeEvent(input$classificar_solo, {
     req(lasData())
     las <- lasData()
@@ -796,6 +840,11 @@ server <- function(input, output, session) {
     ground <- filter_poi(las, Classification == 2)
     not_ground <- filter_poi(las, Classification != 2)
     
+    bbox <- apply(las@data[, c("X", "Y", "Z")], 2, range)
+    xlim <- bbox[,"X"]
+    ylim <- bbox[,"Y"]
+    zlim <- bbox[,"Z"]
+    
     open3d()
     bg3d("white")
     par3d(windowRect = c(100, 100, 800, 800))
@@ -811,14 +860,17 @@ server <- function(input, output, session) {
         max_rgb <- max(rgb_mat, na.rm = TRUE)
         divisor <- if (max_rgb > 255) 65535 else 255
         cores <- rgb(rgb_mat$R / divisor, rgb_mat$G / divisor, rgb_mat$B / divisor)
-        plot3d(not_ground@data[, c("X", "Y", "Z")], col = cores, size = 1, add = FALSE)
+        plot3d(not_ground@data[, c("X", "Y", "Z")], col = cores, size = 1, 
+               add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
       } else {
-        plot3d(not_ground@data[, c("X", "Y", "Z")], col = input$cor_nao_chao, size = 1, add = FALSE)
+        plot3d(not_ground@data[, c("X", "Y", "Z")], col = input$cor_nao_chao, 
+               size = 1, add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
       }
       
     } else {
       
-      plot3d(ground@data[, c("X", "Y", "Z")], col = cor_chao, size = 1, add = FALSE)
+      plot3d(ground@data[, c("X", "Y", "Z")], col = cor_chao, size = 1, 
+             add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
       not_ground <- NULL
     }
     
@@ -865,8 +917,86 @@ server <- function(input, output, session) {
   observeEvent(input$aplicar_classificacao, {
     req(lasSoloClassificado())
     lasData(lasSoloClassificado())
+    
+    shinyalert(
+      title = "Classificação salva!",
+      type = "success",
+      timer = 1500,
+      showConfirmButton = FALSE
+    )
   })
   
+  ##################      
+  #Aba Normalização#
+  ##################
+  
+  output$parametros_mdt <- renderUI({
+    req(input$algoritmo_mdt)
+    
+    if(input$algoritmo_mdt == "idw") {
+      tagList(
+      numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
+      fluidRow(
+        column(6,
+               numericInput("k", "Número de vizinhos (k)", value = 10, step = 1),
+               numericInput("p", "Expoente (p)", value = 2, step = 1)),
+        column(6,
+               numericInput("rmax", "Raio máximo (rmax)", value = 50, step = 1))
+      )
+    )
+    } else if (input$algoritmo_mdt == "tin") {
+      tagList(
+        numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
+        radioButtons("alterar_extrap", "Alterar parâmetros da Extrapolação?",
+                     choices = c("Sim", "Não"), selected = "Não"),
+        
+        conditionalPanel(
+          condition = "input.alterar_extrap == 'Sim'",
+          fluidRow(
+            column(6,
+                   numericInput("k", "Número de vizinhos (k)", value = 3, step = 1),
+                   numericInput("p", "Expoente (p)", value = 2, step = 1)),
+            column(6,
+                   numericInput("rmax", "Raio máximo (rmax)", value = 50, step = 1))
+          )
+        )
+      )
+    }
+  })
+    
+  observeEvent(input$gerar_mdt, {
+    req(lasData())
+    las <- lasData()
+    
+    if (input$algoritmo_mdt == "idw") {
+      
+      mdt <- grid_terrain(las,
+                          res = input$res,
+                          knnidw(k = as.integer(input$k),
+                                 p = input$p,
+                                 rmax = input$rmax))
+    } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Não") {
+      
+      mdt <- grid_terrain(las,
+                          res = input$res,
+                          tin())
+    } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Sim") {
+      
+      mdt <- grid_terrain(las,
+                          res = input$res,
+                          tin(extrapolate = knnidw(k = as.integer(input$k),
+                                                     p = input$p,
+                                                     rmax = input$rmax)))
+    }
+    mdt(mdt)
+  })
+      
+  output$plot_mdtn <- renderRglwidget({
+    req(mdt())
+    plot_dtm3d(mdt(), bg = "white")
+    rglwidget()
+  })
+
 }
 
 shinyApp(ui, server)
