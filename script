@@ -12,6 +12,7 @@ library(RMCC)
 library(leaflet)
 library(shinyalert)
 library(shinycssloaders)
+library(plotly)
 
 ##########
 #Interface
@@ -261,7 +262,13 @@ ui <- fluidPage(
         actionButton("gerar_mdt", "Gerar MDT"),
         hr(),
         
+        downloadButton("baixar_mdt", "Salvar MDT"),
+        hr(),
+        
         actionButton("aplicar_normalizacao", "Aplicar normalização"),
+        hr(),
+        
+        actionButton("salvar_norm", "Salvar normalização"),
         hr(),
         
         h4("Sobre os algoritmos"),
@@ -273,6 +280,7 @@ ui <- fluidPage(
         <li>Representação matemática e digital da superfície do solo, ou seja, exclui-se objetos sobre o mesmo.</li>
         <li>Raster onde cada célula contém a altitude do terreno naquele ponto.</li>
         <li>Resolução da malha (grid) = medida do lado do pixel.</li>
+        <li>Quanto menor a resolução da malha, maior a tendência de gerar erros locais.</li>
         <li>É gerado a partir de pontos classificados como chão ('2')</li>
                           </ul></span>")),
                    bsCollapsePanel("Normalização ▼", 
@@ -281,6 +289,9 @@ ui <- fluidPage(
         <li>A normalização recalcula essa altitude para absoluta, ou seja, em relação ao terreno.</li>
         <li>Z<i>normalizado</i> = Z<i>original</i> - Z<i>terreno</i></li>
         <li>Facilita a retirada de métricas.</li>
+        <li>Pontos degenerados são caracterizados como pontos que ocupam o mesmo XY, mas com diferentes Z.
+        Isso pode trazer más consequências para processamentos em geral. 
+        Por isso, quando identificados, o programa usa os pontos com menor Z.</li>
                           </ul></span>")),
                    bsCollapsePanel("IDW (Inverse Distance Weighting) ▼", 
                                    HTML("<span style='font-size:smaller;'><ul>
@@ -360,9 +371,13 @@ ui <- fluidPage(
                   ############################
                   
                   tabPanel("Normalização",
-                           withSpinner(rglwidgetOutput("plot_mdtn", 
-                                                       height = "600px"), 
-                                       type = 6, color = "green"))
+                           div(class = "plot-border",
+                               withSpinner(rglwidgetOutput("plot_mdtn", 
+                                                       width = "100%", height = "600px"), 
+                                       type = 6, color = "green")),
+                           br(),
+                           h4("Diagnóstico Normalização"),
+                           uiOutput("diag_norm"))
       )
     )
   )
@@ -377,6 +392,7 @@ server <- function(input, output, session) {
   lasSoloClassificado <- reactiveVal(NULL)
   lasRuidos <- reactiveVal(NULL)
   mdt <- reactiveVal(NULL)
+  lasNormalizado <- reactiveVal(NULL)
   
   ################
   #Aba Diagnóstico
@@ -403,12 +419,8 @@ server <- function(input, output, session) {
     las$Classification <- as.integer(0)
     lasData(las)
     
-    shinyalert(
-      title = "Classificação limpa!",
-      type = "success",
-      timer = 1500,
-      showConfirmButton = FALSE
-    )
+    showNotificantion("Classificação limpa!",
+      type = "message")
   })
   
   output$diag_info <- renderPrint({
@@ -614,6 +626,8 @@ server <- function(input, output, session) {
     
   observeEvent(input$classificar_ruidos, {
     req(lasData())
+    
+    withProgress(message = "Classificando ruídos...", {
     las <- lasData()
     
     if (input$algoritmo_ruidos == "sor") {
@@ -635,11 +649,13 @@ server <- function(input, output, session) {
       )
     }
     lasRuidos(las_ruidos)
+    })
   })
   
   output$plot_ruidos <- renderRglwidget({
     req(lasRuidos())
     
+    withProgress(message = "Renderizando 3D...", {
     las <- lasRuidos()
     ruidos <- filter_poi(las, Classification == 18)
     nao_ruidos <- filter_poi(las, Classification != 18)
@@ -681,6 +697,7 @@ server <- function(input, output, session) {
     }
     
     rglwidget()
+    })
   })
   
   output$diag_ruidos <- renderUI({
@@ -710,12 +727,8 @@ server <- function(input, output, session) {
     req(lasRuidos())
     lasData(lasRuidos())
     
-    shinyalert(
-      title = "Classificação salva!",
-      type = "success",
-      timer = 1500,
-      showConfirmButton = FALSE
-    )
+    showNotification("Classificação salva!",
+      type = "message")
   }) 
   
   observeEvent(input$aplicar_classificacao_s_r, {
@@ -723,12 +736,8 @@ server <- function(input, output, session) {
     las_sem_ruido <- filter_poi(lasRuidos(), Classification != 18)
     lasData(las_sem_ruido)
     
-    shinyalert(
-      title = "Ruídos excluídos!",
-      type = "success",
-      timer = 1500,
-      showConfirmButton = FALSE
-    )
+    showNotification("Ruídos excluídos!",
+      type = "message")
   })
   
   #######################      
@@ -787,6 +796,7 @@ server <- function(input, output, session) {
     req(lasData())
     las <- lasData()
     
+    withProgress(message = "Classificando chão...", {
     if (input$algoritmo_solo == "csf") {
       
       las_classificado <- classify_ground(
@@ -831,11 +841,13 @@ server <- function(input, output, session) {
       )
     }
     lasSoloClassificado(las_classificado)
+    })
   })
   
   output$plot_mdt <- renderRglwidget({
     req(lasSoloClassificado())
     
+    withProgress(message = "Renderizando 3D...", {
     las <- lasSoloClassificado()
     ground <- filter_poi(las, Classification == 2)
     not_ground <- filter_poi(las, Classification != 2)
@@ -879,8 +891,8 @@ server <- function(input, output, session) {
     }
     
     rglwidget()
+    })
   })
-  
   
   output$diag_solo_classificado <- renderUI({
     req(input$aba_ativa == "Classificação do chão")
@@ -918,12 +930,8 @@ server <- function(input, output, session) {
     req(lasSoloClassificado())
     lasData(lasSoloClassificado())
     
-    shinyalert(
-      title = "Classificação salva!",
-      type = "success",
-      timer = 1500,
-      showConfirmButton = FALSE
-    )
+    showNotification("Classificação salva!",
+                     type = "message")
   })
   
   ##################      
@@ -968,35 +976,142 @@ server <- function(input, output, session) {
     req(lasData())
     las <- lasData()
     
-    if (input$algoritmo_mdt == "idw") {
+    withProgress(message = "Gerando MDT...", {
       
-      mdt <- grid_terrain(las,
-                          res = input$res,
-                          knnidw(k = as.integer(input$k),
-                                 p = input$p,
-                                 rmax = input$rmax))
-    } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Não") {
+      chao <- filter_poi(las, Classification == 2)
+      if (npoints(chao) == 0) {
+        showNotification("Nenhum ponto de solo encontrado. Não foi possível gerar o MDT.",
+                         type = "error")
+        return(NULL)
+      }
       
-      mdt <- grid_terrain(las,
-                          res = input$res,
-                          tin())
-    } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Sim") {
+      if (input$algoritmo_mdt == "idw") {
+        mdt_calc <- grid_terrain(
+          las,
+          res = input$res,
+          knnidw(k = as.integer(input$k),
+                 p = input$p,
+                 rmax = input$rmax)
+        )
+      } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Não") {
+        mdt_calc <- grid_terrain(
+          las,
+          res = input$res,
+          tin()
+        )
+      } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Sim") {
+        mdt_calc <- grid_terrain(
+          las,
+          res = input$res,
+          tin(extrapolate = knnidw(
+            k = as.integer(input$k),
+            p = input$p,
+            rmax = input$rmax
+          ))
+        )
+      }
       
-      mdt <- grid_terrain(las,
-                          res = input$res,
-                          tin(extrapolate = knnidw(k = as.integer(input$k),
-                                                     p = input$p,
-                                                     rmax = input$rmax)))
-    }
-    mdt(mdt)
+      # salva no reativo
+      mdt(mdt_calc)
+    })
   })
+  
       
   output$plot_mdtn <- renderRglwidget({
     req(mdt())
+    
+    withProgress(message = "Renderizando 3D...", {
     plot_dtm3d(mdt(), bg = "white")
     rglwidget()
+    })
   })
 
+  observeEvent(input$aplicar_normalizacao, {
+    req(lasData())
+    req(mdt())
+    
+    withProgress(message = "Normalizando...", {
+    lasn <- normalize_height(lasData(), mdt())
+    lasNormalizado(lasn)
+    })
+  })
+  
+  diag_norm_vals <- eventReactive(input$aplicar_normalizacao, {
+    req(lasNormalizado(), mdt())
+    chao <- filter_poi(lasNormalizado(), Classification == 2)
+    if (npoints(chao) == 0) return("Nenhum ponto classificado como chão")
+    
+    list(
+      zmax = max(chao@data$Z, na.rm = TRUE),
+      zmin = min(chao@data$Z, na.rm = TRUE),
+      zmed = mean(chao@data$Z, na.rm = TRUE),
+      degp = sum(duplicated(chao@data[, c("X", "Y")])),
+      zamp = max(chao@data$Z, na.rm = TRUE) - min(chao@data$Z, na.rm = TRUE)
+    )
+  })
+  
+  output$hist_chao_plotly <- renderPlotly({
+    req(input$aplicar_normalizacao)
+    req(lasNormalizado())
+    
+    chao <- filter_poi(lasNormalizado(), Classification == 2)
+    req(npoints(chao) > 0)
+    
+    plot_ly(
+      x = chao@data$Z,
+      type = "histogram",
+      nbinsx = 30,
+      marker = list(color = 'skyblue')
+    ) %>%
+      layout(
+        title = "Histograma de alturas do chão (normalizado)",
+        xaxis = list(title = "Altura (m)"),
+        yaxis = list(title = "Frequência")
+      )
+  })
+  
+  output$diag_norm <- renderUI({
+    req(input$aba_ativa == "Normalização")
+    vals <- diag_norm_vals()
+    req(vals)
+    
+    tagList(
+    fluidRow(
+      column(6, 
+             strong("Z máx:"), br(), vals$zmax, br(), br(),
+             strong("Z médio:"), br(), round(vals$zmed, 3), br(), br(),
+             strong("Pontos degenerados:"), br(), vals$degp),
+      column(6, 
+             strong("Z min:"), br(), round(vals$zmin, 4), br(), br(),
+             strong("Z amplitude:"), br(), vals$zamp)
+    ),
+    
+    fluidRow(
+      column(12,
+             plotlyOutput("hist_chao_plotly", height = "300px"))
+     )
+    )
+  })
+  
+  output$baixar_mdt <- downloadHandler(
+    filename = function() {
+      paste0("mdt_", Sys.Date(), ".tif")
+    },
+    content = function(file) {
+      req(mdt())
+      
+      raster::writeRaster(mdt(), file, format = "GTiff", overwrite = TRUE)
+    }
+  )
+  
+  observeEvent(input$salvar_norm, {
+    req(lasData())
+    req(lasNormalizado())
+    
+    withProgress(message = "Salvando normalização...", {
+    lasData(lasNormalizado())
+    })  
+  })
 }
 
 shinyApp(ui, server)
