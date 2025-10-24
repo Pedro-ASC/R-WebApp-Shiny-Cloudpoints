@@ -2,6 +2,7 @@
 
 options(shiny.maxRequestSize = 500 * 1024^2)
 options(rgl.useNULL = TRUE)
+
 library(sf)
 library(shiny)
 library(lidR)
@@ -58,25 +59,25 @@ ui <- fluidPage(
         fileInput("lasfile", "",accept = c(".las", ".laz")),
         hr(),
         
-        h4("Gerar Diagnóstico"),
+        h4("Diagnóstico"),
         actionButton("gerar_diag", "Gerar"),
         hr(),
         
-        h4("Zerar Classificação"),
+        h4("Classificação"),
         actionButton("limpar_classificacao", "Zerar"),
         hr(),
         
-        h4("Baixar .las"),
+        h4("Salvar"),
         checkboxInput("comprimir", "Comprimir (.laz)", value = TRUE),
-        downloadButton("salvar_las", "Baixar"),
+        downloadButton("salvar_las", "Download"),
         hr(),
         
-        h4("Criar Índice Espacial"),
+        h4("Índice Espacial (.lax)"),
         fileInput("arquivo_las", "Selecione a nuvem de pontos salva (ou outra)", accept = c(".las", ".laz")),
-        actionButton("gerar_lax", "Criar .lax"),
+        actionButton("gerar_lax", "Criar"),
         hr(),
         
-        h4("Entendendo sobre .las"),
+        h4("Ajuda"),
         tags$a("LAS Specification 1.4 - R15", href = "#", 
                onclick = "window.open('https://www.asprs.org/wp-content/uploads/2019/07/LAS_1_4_r15.pdf', '_blank'); return false;"),
         bsCollapse(id = "explicacoes_las", open = NULL,
@@ -139,22 +140,22 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.aba_ativa == 'Classificação de Ruídos'",
         
-        h4("Algoritmo de Classificação"),
+        h4("Algoritmos"),
         radioButtons("algoritmo_ruidos", label = NULL,
                      choices = c("SOR" = "sor", "IVF" = "ivf"),
                      selected = "sor"),
         
         hr(),
         
-        h4("Parâmetros do Algoritmo"),
+        h4("Parâmetros"),
         uiOutput("parametros_ruidos"),
         
         actionButton("classificar_ruidos", "Classificar"),
         hr(),
         
-        h4("Configurações da Visualização 3D"),
+        h4("Visualização"),
         checkboxInput("subamostrar", 
-                      "Subamostrar pontos não ruído (Agiliza renderização)",
+                      "Subamostrar pontos não ruído",
                       value = TRUE),
         br(),
         
@@ -162,8 +163,8 @@ ui <- fluidPage(
                       value = TRUE),
         
         conditionalPanel(condition = "input.subamostrar == true",
-                         numericInput("ppmc", "Número máximo de pontos por m³", value = 16, min = 1,
-                                      max = 250, step = 1)),
+        numericInput("ppmc", "Número máximo de pontos por m³", value = 16, min = 1,
+                     max = 250, step = 1)),
         
         fluidRow(
           column(6,
@@ -182,19 +183,19 @@ ui <- fluidPage(
         actionButton("visualizar_ruidos", "Visualizar"),
         hr(),
         
-        h4("Salvar classificação"),
+        h4("Classificação"),
         actionButton("aplicar_classificacao", "Salvar"),
         hr(),
         
-        h4("Excluir pontos ruído"),
+        h4("Pontos ruído"),
         actionButton("aplicar_classificacao_s_r", "Excluir"),
         hr(), 
         
-        h4("Limpar memória"),
+        h4("Memória de renderização"),
         actionButton("limpar_memoria_r", "Limpar"),
         hr(),
         
-        h4("Entendendo os Algoritmos"),
+        h4("Ajuda"),
         tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", 
                target = "_blank", "CRAN lidR pag. 24 'Classify points'"),
         bsCollapse(id = "explicacoes_algoritmos_ruidos", open = NULL,
@@ -230,20 +231,20 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.aba_ativa == 'Classificação do Chão'",
         
-        h4("Algoritmo de classificação"),
+        h4("Algoritmos"),
         radioButtons("algoritmo_solo", label = NULL,
                      choices = c("CSF" = "csf", "PMF" = "pmf", "MCC" = "mcc"),
                      selected = "csf"),
         
-        h4("Parâmetros do Algoritmo"),
+        h4("Parâmetros"),
         uiOutput("parametros_algo"),
         
         actionButton("classificar_chao", "Classificar"),
         hr(),
         
-        h4("Configurações da Visualização 3D"),
+        h4("Visualização"),
         checkboxInput("subamostrar_chao", 
-                      "Subamostrar pontos não chão (Agiliza renderização)",
+                      "Subamostrar pontos não chão",
                       value = TRUE),
         br(),
         checkboxInput("mostrar_outros", "Mostrar pontos não chão", value = TRUE),
@@ -270,15 +271,15 @@ ui <- fluidPage(
         actionButton("visualizar_solo", "Visualizar"),
         hr(),
         
-        h4("Salvar classificação"),
+        h4("Classificação"),
         actionButton("aplicar_classificacao", "Salvar"),
         hr(),
         
-        h4("Limpar memória"),
+        h4("Memória de renderização"),
         actionButton("limpar_memoria_c", "Limpar"),
         hr(),
         
-        h4("Entendendo os algoritmos"),
+        h4("Ajuda"),
         tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", 
                target = "_blank", "CRAN lidR pag. 24 'Classify points'"),
         bsCollapse(id = "explicacoes_algoritmos", open = NULL,
@@ -310,8 +311,8 @@ ui <- fluidPage(
     <li>É adequado para áreas planas e topografia simples.</li>
     <li>É sensível à escolha do tamanho da janela e a distância aceitável entre ponto e superfície.</li>
     <li><strong>Parâmetros</strong>:
-    <ul><li><em>Windows size(ws)</em>: Numérico. Sequência de valores. Área da janela na unidade de medida da nuvem.</li>
-    <li><em>Threshold (th)</em>: Numérico. Sequência de valores (de tamanho igual ao ws). Distância máxima entre superfície e ponto na unidade de medida da nuvem</li></ul>
+    <ul><li><em>Windows size(ws)</em>: Numérico. Lista de valores. Área da janela na unidade de medida da nuvem.</li>
+    <li><em>Threshold (th)</em>: Numérico. Lista de valores (de comprimento igual ao ws). Distância máxima entre superfície e ponto na unidade de medida da nuvem</li></ul>
     <li>Os parâmetros podem ser calculados pela função 'util_makeZhangParam' disponível em lidR.</ul>
     <p><a href='https://www.researchgate.net/publication/3203162_A_progressive_morphological_filter_for_removing_nonground_measurements_from_airborne_LIDAR_data' 
       target='_blank'>Zhang et al., 2013</a></p><span>")),
@@ -343,30 +344,31 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.aba_ativa == 'MDT e Normalização'",
         
-        h4("Algoritmo para criação do MDT"),
+        h4("Algoritmos MDT"),
         radioButtons("algoritmo_mdt", label = NULL,
                      choices = c("IDW" = "idw","TIN" = "tin"),
                      selected = "idw"),
         
-        h4("Parâmetros do Algoritmo"),
+        h4("Parâmetros"),
         uiOutput("parametros_mdt"),
         
-        actionButton("gerar_mdt", "Gerar MDT"),
+        actionButton("gerar_mdt", "Gerar"),
         hr(),
         
-        h4("Baixar MDT"),
-        downloadButton("baixar_mdt", "Baixar"),
+        h4("Salvar"),
+        downloadButton("baixar_mdt", "Download"),
         hr(),
         
         h4("Normalização"),
         actionButton("aplicar_normalizacao", "Aplicar"),
-        hr(),
-        
-        h4("Salvar normalização"),
         actionButton("salvar_norm", "Salvar"),
         hr(),
         
-        h4("Entendendo os algoritmos"),
+        h4("Memória de renderização"),
+        actionButton("limpar_memoria_s", "Limpar"),
+        hr(),
+        
+        h4("Ajuda"),
         tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", 
                target = "_blank", "CRAN lidR pag. 34 'dtm_*'"),
         bsCollapse(id = "explicacoes_algoritmos_norm", open = NULL,
@@ -375,7 +377,6 @@ ui <- fluidPage(
         <li>Representação matemática e digital da superfície do solo, ou seja, exclui-se objetos sobre o mesmo.</li>
         <li>Raster onde cada célula contém a altitude do terreno naquele ponto.</li>
         <li>Resolução da malha (grid) = medida do lado do pixel.</li>
-        <li>Quanto menor a resolução da malha, maior a tendência de gerar erros locais.</li>
         <li>É gerado a partir de pontos classificados como chão ('2')</li>
                           </ul></span>")),
                    bsCollapsePanel("Normalização ▼", 
@@ -420,8 +421,75 @@ ui <- fluidPage(
         <li>Devido à necessidade de ajustar um variograma se faz necessário que a aplicação deste modelo aconteça fora deste aplicativo.</li>
                        </ul></span>"))
         )
-      )
-    ),
+      ),
+      
+      #########
+      #Aba MDS#      
+      #########
+      
+      conditionalPanel(
+        condition = "input.aba_ativa == 'MDS'",
+        
+        h4("Algoritmos MDS"),
+        radioButtons("algoritmo_mds", label = NULL,
+                     choices = c("P2R" = "p2r", "TIN" = "tin", "Pit-free" = "pf"),
+                     selected = "p2r"),
+        
+        h4("Parâmetros"),
+        uiOutput("parametros_mds"),
+        
+        actionButton("gerar_mds", "Gerar MDS"),
+        hr(),
+        
+        h4("Salvar"),
+        downloadButton("baixar_mds", "Download"),
+        hr(),
+        
+        h4("Ajuda"),
+        tags$a(href = "https://cran.r-project.org/web/packages/lidR/lidR.pdf", 
+               target = "_blank", "CRAN lidR pag. 31'dsm_*'"),
+        bsCollapse(id = "explicacoes_algoritmos_mds", open = NULL,
+                   bsCollapsePanel("Modelo Digital do Terreno (MDS) ▼", 
+                   HTML("<span style='font-size:smaller;'><ul>
+                   <li>Representação matemática e digital da superfície do local, incluindo os objetos sobre o solo</li>
+                   <li>Raster onde cada célula contém a altitude da superfície naquele ponto</li>
+                   <li>Resolução da malha (grid) = medida do lado do pixel.</li>
+                   <li>Pode ser gerado pelos primeiros retornos ou pelos pontos mais altos.</li>
+                        </ul></span>")),
+                   bsCollapsePanel("P2R (Point to Raster) ▼",
+                                   HTML("<span style='font-size:smaller;'><ul>
+                                   <li>Rasteriza e atribui o ponto mais alto para cada píxel.</li>
+                                   <li>Processamento mais leve.</li>
+                                   <li>Suscetível a 'buracos': depressões no modelo digital devido às células vazias do raster.</li>
+                                   <li><strong>Parâmetros</strong>:
+                                   <ul><li><em>subcircle</em>: Numérico. Metros. Tamanho do raio de uma círculo que replica o ponto original em outros 8, dispostos horizontalmente, 'aumentando' a superfície de cobertura do ponto original.</li>
+                                   <li><em>na.fill</em>: Função. Interpola espaços vazios entre pontos. Disponíveis:
+                                    <ul><li>tin()</li>
+                                    <li>knnidw()</li>
+                                    <li>kriging()</li></ul></li></ul></li></span>")),
+                   bsCollapsePanel("TIN (Triangulated Irregular Network) ▼",
+                                   HTML("<span style='font-size:smaller;'><ul>
+                                        <li>Constrói uma triangulação de Delaunay entre os pontos e interpola valores nos triângulos que produzirão o raster.</li>
+                                        <li>Processamento mais leve.</li>
+                                        <li>Apropriado para nuvens de pontos densas.</li>
+                                        <li><strong>Parâmetros</strong>:
+                                        <ul><li><em>max_edge</em>: Numérico. Metros. Tamanho máximo das arestas do triângulo. Evita geometrias muito longas.</li>
+                                        <li><em>highest</em>: Lógico. Se verdadeiro seleciona apenas os pontos mais altos por píxel, diminuindo processamento. Se falso então usa todos os primeiros retornos.</li>
+                                        </ul></li></ul></span>")),
+                   bsCollapsePanel("Pit-free ▼",
+                                   HTML("<span style='font-size:smaller;'><ul>
+                        <li>Desenvolvido para áreas com copas complexas, diminuindo os 'buracos' que aparecem no raster devido à falta de pontos</li>
+                                        <li>Constrói várias triangulações em níveis de cortes diferentes (thresholds) e as combina.</li>
+                                        <li>Processamento mais pesado.</li>
+                                        <li><strong>Parâmetros</strong>:
+                                        <ul><li><em>thresholds</em>: Numérico. Lista de valores. Metros. Níveis de altura para triangulação.</li>
+                                        <li><em>max_edge</em>: Numérico. Metros. Tamanho máximo das arestas do triângulo. Evita geometrias muito longas.</li>
+                                        <li><em>subcircle</em>: Numérico. Metros. Tamanho do raio de uma círculo que replica o ponto original em outros 8, disposto horizontalmente, 'aumentando' a superfície de cobertura do ponto original.</li>
+                                        <li><em>highest</em>: Lógico. Se verdadeiro seleciona apenas os pontos mais altos por píxel, diminuindo processamento. Se falso então usa todos os primeiros retornos.</li>
+                                        </ul></li></ul>
+                                        <p><a href='https://ris.utwente.nl/ws/portalfiles/portal/453105235/s3.pdf' target='_blank'>Khosravipour et al. 2014</a></p></span>"))
+        )
+    )),
     
     mainPanel(
       tabsetPanel(id = "aba_ativa",
@@ -440,7 +508,7 @@ ui <- fluidPage(
                   tabPanel("Classificação de Ruídos",
                            div(class = "plot-border", 
                                withSpinner(rglwidgetOutput("plot_ruidos",
-                                                           width = "100%", height = "600px"), 
+                                               width = "100%", height = "600px"), 
                                            type = 6, color = "green")),
                            br(),
                            h4("Diagnósticos dos pontos ruído"),
@@ -454,7 +522,7 @@ ui <- fluidPage(
                   tabPanel("Classificação do Chão",
                            div(class = "plot-border", 
                                withSpinner(rglwidgetOutput("plot_mdt", 
-                                                           width = "100%", height = "600px"), 
+                                               width = "100%", height = "600px"), 
                                            type = 6, color = "green")),
                            br(),
                            h4("Diagnóstico dos pontos chão"),
@@ -468,11 +536,29 @@ ui <- fluidPage(
                   tabPanel("MDT e Normalização",
                            div(class = "plot-border",
                                withSpinner(rglwidgetOutput("plot_mdtn", 
+                                                       width = "100%", height = "600px"), 
+                                       type = 6, color = "green")),
+                           br(),
+                           h4("Diagnóstico MDT"),
+                           uiOutput("diag_mdt"),
+                           br(),
+                           h4("Diagnóstico Normalização"),
+                           uiOutput("diag_norm")
+                  ),
+                  
+                  #########
+                  #Aba MDS#
+                  #########
+                  
+                  tabPanel("MDS",
+                           div(class = "plot-border",
+                               withSpinner(rglwidgetOutput("plot_mds", 
                                                            width = "100%", height = "600px"), 
                                            type = 6, color = "green")),
                            br(),
-                           h4("Diagnóstico Normalização"),
-                           uiOutput("diag_norm"))
+                           h4("Diagnóstico MDS"),
+                           uiOutput("diag_mds")
+                  )
       )
     )
   )
@@ -487,11 +573,13 @@ server <- function(input, output, session) {
   lasSoloClassificado <- reactiveVal(NULL)
   lasRuidos <- reactiveVal(NULL)
   mdt <- reactiveVal(NULL)
+  mds <- reactiveVal(NULL)
   lasNormalizado <- reactiveVal(NULL)
   totalpp <- reactiveVal(NULL)
   hdr <- reactiveVal(NULL)
   diag_corr <- reactiveVal("hdr")
   totalppc <- reactiveVal(NULL)
+  show_na <- reactiveVal(NULL)
   
   ################
   #Aba Diagnóstico
@@ -524,7 +612,7 @@ server <- function(input, output, session) {
     lasData(las)
     
     showNotification("Classificação limpa!",
-                     type = "message")
+                      type = "message")
   })
   
   output$salvar_las <- downloadHandler(
@@ -555,214 +643,214 @@ server <- function(input, output, session) {
     req(hdr())
     
     withProgress(message = "Carregando metadados...", value = 0, {
-      hdr <- hdr()
-      
-      dia <- hdr$`File Creation Day of Year`
-      ano <- hdr$`File Creation Year`
-      data <- as.Date(dia - 1, origin = paste0(ano, "-01-01"))
-      dataf <- format(data, "%d/%m/%Y")
-      
-      cat("### Resumo Metadados ### \n")
-      cat("Data de criação:", dataf, "\n")
-      cat("ID do formato LAS:", hdr$`Point Data Format ID`, "\n")
-      cat("Total de pontos:", hdr$`Number of point records`, "\n")
-      cat("Número de pontos por retorno:", hdr$`Number of points by return`, "\n")
-      cat("Max e Min X:", hdr$`Max X`, hdr$`Min X`, "\n")
-      cat("Max e Min Y:", hdr$`Max Y`, hdr$`Min Y`, "\n")
-      cat("Max e Min Z:", hdr$`Max Z`, hdr$`Min Z`, "\n")
+    hdr <- hdr()
+    
+    dia <- hdr$`File Creation Day of Year`
+    ano <- hdr$`File Creation Year`
+    data <- as.Date(dia - 1, origin = paste0(ano, "-01-01"))
+    dataf <- format(data, "%d/%m/%Y")
+    
+    cat("### Resumo Metadados ### \n")
+    cat("Data de criação:", dataf, "\n")
+    cat("ID do formato LAS:", hdr$`Point Data Format ID`, "\n")
+    cat("Total de pontos:", hdr$`Number of point records`, "\n")
+    cat("Número de pontos por retorno:", hdr$`Number of points by return`, "\n")
+    cat("Max e Min X:", hdr$`Max X`, hdr$`Min X`, "\n")
+    cat("Max e Min Y:", hdr$`Max Y`, hdr$`Min Y`, "\n")
+    cat("Max e Min Z:", hdr$`Max Z`, hdr$`Min Z`, "\n")
     })
   })
   
   observeEvent(input$gerar_diag, {
-    output$diag_info <- renderPrint({
-      req(lasData())
+  output$diag_info <- renderPrint({
+    req(lasData())
+    
+    withProgress(message = "Carregando diagnóstico...", value = 0, {
       
-      withProgress(message = "Carregando diagnóstico...", value = 0, {
-        
-        las <- lasData()
-        header <- las@header
-        ladox <- (header@PHB$`Max X` - header@PHB$`Min X`)
-        ladoy <- (header@PHB$`Max Y` - header@PHB$`Min Y`)
-        area_bbox <- ladox * ladoy
-        alt_bbox <- (header@PHB$`Max Z` - header@PHB$`Min Z`)
-        vol_bbox <- area_bbox * alt_bbox
-        xscale <- header@PHB$`X scale factor`
-        yscale <- header@PHB$`Y scale factor`
-        zscale <- header@PHB$`Z scale factor`
-        xoffset <- header@PHB$`X offset`
-        yoffset <- header@PHB$`Y offset`
-        zoffset <- header@PHB$`Z offset`
-        
-        voxels <- voxel_metrics(las, ~length(Z), voxel_size = 1, all_voxels = FALSE)
-        nvoxels <- nrow(voxels)
-        med_pvox <- round(mean(voxels$V1, na.rm = TRUE), 0)
-        sd_pvox <- round(sd(voxels$V1, na.rm = TRUE), 0)
-        
-        # Verifica agrupamento dos pontos de solo por desvio padrão da densidade
-        solo <- filter_poi(las, Classification == 2)
-        if (npoints(solo) > 0) {
-          dens_grid <- grid_density(solo, res = 1)
-          dens_sd <- sd(values(dens_grid), na.rm = TRUE)
-        } else {
-          dens_sd <- NA
-        }
-        
-        # Verificação de normalização com base na mediana de Z do solo
-        if (npoints(solo) > 0) {
-          mediana_z_solo <- median(solo@data$Z, na.rm = TRUE)
-          esta_normalizada <- abs(mediana_z_solo) <= 0.5
-        } else {
-          mediana_z_solo <- NA
-          esta_normalizada <- NA
-        }
-        
-        cat("### XYZ ### \n")
-        
-        # Diagnóstico CRS
-        crs_info <- sf::st_crs(las)
-        if (!is.na(crs_info$epsg)) {
-          cat("Sistema de Coordenadas:", crs_info$epsg, "-", crs_info$Name, "\n")
-        } else {
-          cat("Sistema de Coordenadas:", crs_info$proj4string, "\n")
-        }
-        
-        # Verificação da escala das coordenadas
-        med_x <- mean(las@data$X, na.rm = TRUE)
-        if (abs(med_x) < 166000) {
-          cat("Média da coordenada X < 166 mil: Sistema local ou reduzido.\n")
-        }
-        
-        # Diagnóstico sobre Intensity
-        tem_intensity <- "Intensity" %in% names(las@data) &&
-          mean(!is.na(las@data$Intensity) & las@data$Intensity > 0, na.rm = TRUE) > 0.95
-        
-        # Diagnóstico sobre retornos
-        tem_return_number <- "ReturnNumber" %in% names(las@data) &&
-          mean(!is.na(las@data$ReturnNumber) & las@data$ReturnNumber > 0) > 0.95
-        tem_number_of_returns <- "NumberOfReturns" %in% names(las@data) &&
-          mean(!is.na(las@data$NumberOfReturns) & las@data$NumberOfReturns > 0) > 0.95
-        
-        # Diagnóstico sobre RGB
-        tem_rgb_valido <- all(c("R", "G", "B") %in% names(las@data)) &&
-          mean(rowSums(las@data[, c("R", "G", "B")]) > 0, na.rm = TRUE) > 0.95
-        
-        simulado_rgb <- FALSE
-        if (tem_rgb_valido) {
-          rgb_vals <- las@data[, c("R", "G", "B")]
-          geom_vars <- las@data[, c("X", "Y", "Z")]
-          cors <- cor(cbind(geom_vars, rgb_vals), use = "complete.obs")
-          cor_geom_rgb <- cors[c("X", "Y", "Z"), c("R", "G", "B")]
-          simulado_rgb <- any(abs(cor_geom_rgb) > 0.85)
-        }
-        
-        # Verificação de classificação
-        if ("Classification" %in% names(las@data)) {
-          classes_presentes <- unique(na.omit(las@data$Classification))
-          esta_classificada <- length(classes_presentes) > 1
-          tem_chao_classificado <- 2 %in% classes_presentes
-        } else {
-          esta_classificada <- FALSE
-          tem_chao_classificado <- FALSE
-        }
-        
-        cat("Total de pontos:", npoints(las), "\n")
-        cat("Lado X bbox (m):", round(ladox, 2), "\n")
-        cat("Lado Y bbox (m):", round(ladoy, 2), "\n")
-        cat("Área bbox (m²):", round(area_bbox, 2), "\n")
-        cat("Altura Z bbox (m):", round(alt_bbox, 2), "\n")
-        cat("Volume bbox (m³):", vol_bbox, "\n")
-        cat("Voxels de 1m³ com pelo menos 1 ponto:", nvoxels, "\n")
-        cat("Média de Pontos por Voxel (1m³, exceto vazios):", med_pvox, "\n")
-        cat("Desvio padrão de Pontos por Voxel (1m³, exceto vazios):", sd_pvox, "\n")
-        cat("Scale Factor:", xscale, yscale, zscale, "\n")
-        cat("Offset Value:", xoffset, yoffset, zoffset, "\n")
-        cat("Mínimo e Máximo de X:", header@PHB$`Min X`, header@PHB$`Max X`, "\n")
-        cat("Mínimo e Máximo de Y:", header@PHB$`Min Y`, header@PHB$`Max Y`, "\n")
-        cat("Mínimo e Máximo de Z:", header@PHB$`Min Z`, header@PHB$`Max Z`, "\n \n")
-        
-        cat("### Intensity ### \n")
-        cat("Válido?", if (tem_intensity) "Sim" else "Não", "\n")
-        cat("Mínimo e Máximo:", min(las@data$Intensity), max(las@data$Intensity), "\n \n")
-        
-        cat("### Return Number e Number Of Returns ### \n")
-        cat("ReturnNumber válido?", if (tem_return_number) "Sim" else "Não", "\n")
-        cat("NumberOfReturns válido?", if (tem_number_of_returns) "Sim" else "Não", "\n")
-        cat("Máximo de retornos:", max(las@data$ReturnNumber), "\n")
-        cat("Pontos por retorno:", header@PHB$`Number of points by return`, "\n \n")
-        
-        # Verificações de ScanDirectionFlag, EdgeOfFlightLine e ScanAngleRank
-        tem_scan_direction <- "ScanDirectionFlag" %in% names(las@data) && any(las@data$ScanDirectionFlag != 0, na.rm = TRUE)
-        tem_edge_flag <- "EdgeOfFlightline" %in% names(las@data) && any(las@data$EdgeOfFlightline != 0, na.rm = TRUE)
-        tem_scan_angle <- "ScanAngleRank" %in% names(las@data) && any(las@data$ScanAngleRank != 0, na.rm = TRUE)
-        
-        cat("### Scan Direction Flag ### \n")
-        cat("Válido?", if (tem_scan_direction) "Sim" else "Não", "\n")
-        cat("Quantos pontos 0 e 1?", sum(las@data$ScanDirectionFlag == 0), sum(las@data$ScanDirectionFlag == 1), "\n \n")
-        
-        cat("### Edge Of Flightline ### \n")
-        cat("Válido?", if (tem_edge_flag) "Sim" else "Não", "\n")
-        cat("Quantos pontos 0 e 1?",sum(las@data$EdgeOfFlightline == 0), sum(las@data$EdgeOfFlightline == 1), "\n \n")
-        
-        cat("### Scan Angle Rank ### \n")
-        cat("Válido?", if (tem_scan_angle) "Sim" else "Não", "\n")
-        cat("Mínimo e Máximo:", min(las@data$ScanAngleRank), max(las@data$ScanAngleRank), "\n \n")
-        
-        cat("### Classification ### \n")
-        cat("Pontos classificados? ", if (esta_classificada) "Sim" else "Não", "\n")
-        cat("Quais classes? ", unlist(classes_presentes), "\n")
-        
-        # Estatísticas sobre pontos classificados como chão (2)
-        if (esta_classificada) {n_chao <- npoints(solo)
-        dens_chao <- if (!is.null(n_chao) && area_bbox > 0) n_chao / area_bbox else NA
-        cat("Pontos classificados como chão:", n_chao, "\n")
-        cat("Densidade de pontos no chão (pontos/m²):", round(dens_chao, 2), "\n")
-        cat("Desvio-padrão da densidade de pontos no chão:", if (!is.na(dens_sd)) round(dens_sd, 2) else "Não aplicável", "\n")
-        cat("Mediana Z do solo (m):", if (!is.na(mediana_z_solo)) round(mediana_z_solo, 2) else "Não aplicável", "\n")
-        cat("Nuvem normalizada? ", 
-            if (is.na(esta_normalizada)) "Não aplicável \n" 
-            else if (esta_normalizada) "Sim" else "Não", "\n \n")} else {cat("\n")}   
-        
-        # Diagnóstico PointSourceID: número de fontes distintas
-        if ("PointSourceID" %in% names(las@data)) {
-          fontes_id <- unique(na.omit(las@data$PointSourceID))
-          qtd_fontes <- length(fontes_id)
-        } else {
-          qtd_fontes <- NA
-        }
-        
-        # UserData
-        tem_userdata <- "UserData" %in% names(las@data) && any(!is.na(las@data$UserData) & las@data$UserData != 0)
-        cat("### UserData ### \n")
-        cat("Preenchido?", if (tem_userdata) "Sim" else "Não", "\n")
-        if (tem_userdata) {cat("Mínimo e Máximo:", min(las@data$UserData), max(las@data$UserData), "\n \n")} else {cat("\n")}
-        
-        # Verificação GPSTime
-        tem_gpstime <- "gpstime" %in% names(las@data) &&
-          mean(!is.na(las@data$gpstime) & las@data$gpstime > 0, na.rm = TRUE) > 0.95
-        
-        cat("### Point Source ID ### \n")
-        if (!is.na(qtd_fontes)) {
-          if (qtd_fontes > 1) {
-            cat("PointSourceID: ", qtd_fontes, " fontes diferentes \n \n")
-          } else {
-            cat("PointSourceID: Apenas uma fonte \n \n")
-          }
-        } else {
-          cat("PointSourceID: Coluna ausente \n \n")
-        }
-        cat("### GPS Time ### \n")
-        cat("Válido?", if (tem_gpstime) "Sim" else "Não", "\n \n")
-        
-        # RGB
-        cat("### RGB ### \n")
-        cat("Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "\n")
-        if (tem_rgb_valido) {cat("RGB parece simulado?", if (simulado_rgb) "Sim" else "Não", "\n")}
-      })
+      las <- lasData()
+      header <- las@header
+      ladox <- (header@PHB$`Max X` - header@PHB$`Min X`)
+      ladoy <- (header@PHB$`Max Y` - header@PHB$`Min Y`)
+      area_bbox <- ladox * ladoy
+      alt_bbox <- (header@PHB$`Max Z` - header@PHB$`Min Z`)
+      vol_bbox <- area_bbox * alt_bbox
+      xscale <- header@PHB$`X scale factor`
+      yscale <- header@PHB$`Y scale factor`
+      zscale <- header@PHB$`Z scale factor`
+      xoffset <- header@PHB$`X offset`
+      yoffset <- header@PHB$`Y offset`
+      zoffset <- header@PHB$`Z offset`
+    
+      voxels <- voxel_metrics(las, ~length(Z), voxel_size = 1, all_voxels = FALSE)
+      nvoxels <- nrow(voxels)
+      med_pvox <- round(mean(voxels$V1, na.rm = TRUE), 0)
+      sd_pvox <- round(sd(voxels$V1, na.rm = TRUE), 0)
+      
+    # Verifica agrupamento dos pontos de solo por desvio padrão da densidade
+    solo <- filter_poi(las, Classification == 2)
+    if (npoints(solo) > 0) {
+      dens_grid <- grid_density(solo, res = 1)
+      dens_sd <- sd(values(dens_grid), na.rm = TRUE)
+    } else {
+      dens_sd <- NA
+    }
+    
+    # Verificação de normalização com base na mediana de Z do solo
+    if (npoints(solo) > 0) {
+      mediana_z_solo <- median(solo@data$Z, na.rm = TRUE)
+      esta_normalizada <- abs(mediana_z_solo) <= 0.5
+    } else {
+      mediana_z_solo <- NA
+      esta_normalizada <- NA
+    }
+    
+    cat("### XYZ ### \n")
+    
+    # Diagnóstico CRS
+    crs_info <- sf::st_crs(las)
+    if (!is.na(crs_info$epsg)) {
+      cat("Sistema de Coordenadas:", crs_info$epsg, "-", crs_info$Name, "\n")
+    } else {
+      cat("Sistema de Coordenadas:", crs_info$proj4string, "\n")
+    }
+    
+    # Verificação da escala das coordenadas
+    med_x <- mean(las@data$X, na.rm = TRUE)
+    if (abs(med_x) < 166000) {
+      cat("Média da coordenada X < 166 mil: Sistema local ou reduzido.\n")
+    }
+    
+    # Diagnóstico sobre Intensity
+    tem_intensity <- "Intensity" %in% names(las@data) &&
+      mean(!is.na(las@data$Intensity) & las@data$Intensity > 0, na.rm = TRUE) > 0.95
+    
+    # Diagnóstico sobre retornos
+    tem_return_number <- "ReturnNumber" %in% names(las@data) &&
+      mean(!is.na(las@data$ReturnNumber) & las@data$ReturnNumber > 0) > 0.95
+    tem_number_of_returns <- "NumberOfReturns" %in% names(las@data) &&
+      mean(!is.na(las@data$NumberOfReturns) & las@data$NumberOfReturns > 0) > 0.95
+    
+    # Diagnóstico sobre RGB
+    tem_rgb_valido <- all(c("R", "G", "B") %in% names(las@data)) &&
+      mean(rowSums(las@data[, c("R", "G", "B")]) > 0, na.rm = TRUE) > 0.95
+    
+    simulado_rgb <- FALSE
+    if (tem_rgb_valido) {
+      rgb_vals <- las@data[, c("R", "G", "B")]
+      geom_vars <- las@data[, c("X", "Y", "Z")]
+      cors <- cor(cbind(geom_vars, rgb_vals), use = "complete.obs")
+      cor_geom_rgb <- cors[c("X", "Y", "Z"), c("R", "G", "B")]
+      simulado_rgb <- any(abs(cor_geom_rgb) > 0.85)
+    }
+    
+    # Verificação de classificação
+    if ("Classification" %in% names(las@data)) {
+      classes_presentes <- unique(na.omit(las@data$Classification))
+      esta_classificada <- length(classes_presentes) > 1
+      tem_chao_classificado <- 2 %in% classes_presentes
+    } else {
+      esta_classificada <- FALSE
+      tem_chao_classificado <- FALSE
+    }
+    
+    cat("Total de pontos:", npoints(las), "\n")
+    cat("Lado X bbox (m):", round(ladox, 2), "\n")
+    cat("Lado Y bbox (m):", round(ladoy, 2), "\n")
+    cat("Área bbox (m²):", round(area_bbox, 2), "\n")
+    cat("Altura Z bbox (m):", round(alt_bbox, 2), "\n")
+    cat("Volume bbox (m³):", vol_bbox, "\n")
+    cat("Voxels de 1m³ com pelo menos 1 ponto:", nvoxels, "\n")
+    cat("Média de Pontos por Voxel (1m³, exceto vazios):", med_pvox, "\n")
+    cat("Desvio padrão de Pontos por Voxel (1m³, exceto vazios):", sd_pvox, "\n")
+    cat("Scale Factor:", xscale, yscale, zscale, "\n")
+    cat("Offset Value:", xoffset, yoffset, zoffset, "\n")
+    cat("Mínimo e Máximo de X:", header@PHB$`Min X`, header@PHB$`Max X`, "\n")
+    cat("Mínimo e Máximo de Y:", header@PHB$`Min Y`, header@PHB$`Max Y`, "\n")
+    cat("Mínimo e Máximo de Z:", header@PHB$`Min Z`, header@PHB$`Max Z`, "\n \n")
+    
+    cat("### Intensity ### \n")
+    cat("Válido?", if (tem_intensity) "Sim" else "Não", "\n")
+    cat("Mínimo e Máximo:", min(las@data$Intensity), max(las@data$Intensity), "\n \n")
+    
+    cat("### Return Number e Number Of Returns ### \n")
+    cat("ReturnNumber válido?", if (tem_return_number) "Sim" else "Não", "\n")
+    cat("NumberOfReturns válido?", if (tem_number_of_returns) "Sim" else "Não", "\n")
+    cat("Máximo de retornos:", max(las@data$ReturnNumber), "\n")
+    cat("Pontos por retorno:", header@PHB$`Number of points by return`, "\n \n")
+    
+    # Verificações de ScanDirectionFlag, EdgeOfFlightLine e ScanAngleRank
+    tem_scan_direction <- "ScanDirectionFlag" %in% names(las@data) && any(las@data$ScanDirectionFlag != 0, na.rm = TRUE)
+    tem_edge_flag <- "EdgeOfFlightline" %in% names(las@data) && any(las@data$EdgeOfFlightline != 0, na.rm = TRUE)
+    tem_scan_angle <- "ScanAngleRank" %in% names(las@data) && any(las@data$ScanAngleRank != 0, na.rm = TRUE)
+    
+    cat("### Scan Direction Flag ### \n")
+    cat("Válido?", if (tem_scan_direction) "Sim" else "Não", "\n")
+    cat("Quantos pontos 0 e 1?", sum(las@data$ScanDirectionFlag == 0), sum(las@data$ScanDirectionFlag == 1), "\n \n")
+    
+    cat("### Edge Of Flightline ### \n")
+    cat("Válido?", if (tem_edge_flag) "Sim" else "Não", "\n")
+    cat("Quantos pontos 0 e 1?",sum(las@data$EdgeOfFlightline == 0), sum(las@data$EdgeOfFlightline == 1), "\n \n")
+    
+    cat("### Scan Angle Rank ### \n")
+    cat("Válido?", if (tem_scan_angle) "Sim" else "Não", "\n")
+    cat("Mínimo e Máximo:", min(las@data$ScanAngleRank), max(las@data$ScanAngleRank), "\n \n")
+    
+    cat("### Classification ### \n")
+    cat("Pontos classificados? ", if (esta_classificada) "Sim" else "Não", "\n")
+    cat("Quais classes? ", unlist(classes_presentes), "\n")
+    
+    # Estatísticas sobre pontos classificados como chão (2)
+    if (esta_classificada) {n_chao <- npoints(solo)
+    dens_chao <- if (!is.null(n_chao) && area_bbox > 0) n_chao / area_bbox else NA
+    cat("Pontos classificados como chão:", n_chao, "\n")
+    cat("Densidade de pontos no chão (pontos/m²):", round(dens_chao, 2), "\n")
+    cat("Desvio-padrão da densidade de pontos no chão:", if (!is.na(dens_sd)) round(dens_sd, 2) else "Não aplicável", "\n")
+    cat("Mediana Z do solo (m):", if (!is.na(mediana_z_solo)) round(mediana_z_solo, 2) else "Não aplicável", "\n")
+    cat("Nuvem normalizada? ", 
+        if (is.na(esta_normalizada)) "Não aplicável \n" 
+        else if (esta_normalizada) "Sim" else "Não", "\n \n")} else {cat("\n")}   
+    
+    # Diagnóstico PointSourceID: número de fontes distintas
+    if ("PointSourceID" %in% names(las@data)) {
+      fontes_id <- unique(na.omit(las@data$PointSourceID))
+      qtd_fontes <- length(fontes_id)
+    } else {
+      qtd_fontes <- NA
+    }
+    
+    # UserData
+    tem_userdata <- "UserData" %in% names(las@data) && any(!is.na(las@data$UserData) & las@data$UserData != 0)
+    cat("### UserData ### \n")
+    cat("Preenchido?", if (tem_userdata) "Sim" else "Não", "\n")
+    if (tem_userdata) {cat("Mínimo e Máximo:", min(las@data$UserData), max(las@data$UserData), "\n \n")} else {cat("\n")}
+    
+    # Verificação GPSTime
+    tem_gpstime <- "gpstime" %in% names(las@data) &&
+      mean(!is.na(las@data$gpstime) & las@data$gpstime > 0, na.rm = TRUE) > 0.95
+    
+    cat("### Point Source ID ### \n")
+    if (!is.na(qtd_fontes)) {
+      if (qtd_fontes > 1) {
+        cat("PointSourceID: ", qtd_fontes, " fontes diferentes \n \n")
+      } else {
+        cat("PointSourceID: Apenas uma fonte \n \n")
+      }
+    } else {
+      cat("PointSourceID: Coluna ausente \n \n")
+    }
+    cat("### GPS Time ### \n")
+    cat("Válido?", if (tem_gpstime) "Sim" else "Não", "\n \n")
+    
+    # RGB
+    cat("### RGB ### \n")
+    cat("Possui RGB?", if (tem_rgb_valido) "Sim" else "Não", "\n")
+    if (tem_rgb_valido) {cat("RGB parece simulado?", if (simulado_rgb) "Sim" else "Não", "\n")}
     })
-    
-    diag_corr("diag")
-    
   })
+  
+  diag_corr("diag")
+  
+})
   
   output$main_info <- renderUI({
     req(diag_corr())
@@ -797,32 +885,32 @@ server <- function(input, output, session) {
       )
     }
   })
-  
+    
   observeEvent(input$classificar_ruidos, {
     req(lasData())
     
     withProgress(message = "Classificando ruídos...", {
-      las <- lasData()
-      
-      if (input$algoritmo_ruidos == "sor") {
-        las_ruidos <- classify_noise(
-          las,
-          sor(
-            k = input$k,
-            m = input$m,
-            quantile = as.logical(input$quantile)
-          )
+    las <- lasData()
+    
+    if (input$algoritmo_ruidos == "sor") {
+      las_ruidos <- classify_noise(
+        las,
+        sor(
+          k = input$k,
+          m = input$m,
+          quantile = as.logical(input$quantile)
         )
-      } else if (input$algoritmo_ruidos == "ivf") {
-        las_ruidos <- classify_noise(
-          las,
-          ivf(
-            res = input$res,
-            n = input$n
-          )
+      )
+    } else if (input$algoritmo_ruidos == "ivf") {
+      las_ruidos <- classify_noise(
+        las,
+        ivf(
+          res = input$res,
+          n = input$n
         )
-      }
-      lasRuidos(las_ruidos)
+      )
+    }
+    lasRuidos(las_ruidos)
     })
     
     showNotification("Classificado!", type = "message")
@@ -832,17 +920,17 @@ server <- function(input, output, session) {
     req(lasRuidos())
     
     withProgress(message = "Processando...", {
-      las <- lasRuidos()
-      ruidos <- filter_poi(las, Classification == 18)
-      nao_ruidos <- filter_poi(las, Classification != 18)
-      bbox <- apply(las@data[, c("X", "Y", "Z")], 2, range)
-      xlim <- bbox[,"X"]
-      ylim <- bbox[,"Y"]
-      zlim <- bbox[,"Z"]
-      resvx <- (1 / input$ppmc)^(1/3)
-      cor_ruidos <- input$cor_ruidos
-      cor_nao_ruidos <- input$cor_nao_ruidos
-      mostrar_naoruidos <- input$mostrar_naoruidos
+    las <- lasRuidos()
+    ruidos <- filter_poi(las, Classification == 18)
+    nao_ruidos <- filter_poi(las, Classification != 18)
+    bbox <- apply(las@data[, c("X", "Y", "Z")], 2, range)
+    xlim <- bbox[,"X"]
+    ylim <- bbox[,"Y"]
+    zlim <- bbox[,"Z"]
+    resvx <- (1 / input$ppmc)^(1/3)
+    cor_ruidos <- input$cor_ruidos
+    cor_nao_ruidos <- input$cor_nao_ruidos
+    mostrar_naoruidos <- input$mostrar_naoruidos
     })
     
     if (npoints(nao_ruidos) > 1e5 && input$subamostrar == TRUE && input$mostrar_naoruidos == TRUE) { 
@@ -852,58 +940,64 @@ server <- function(input, output, session) {
     } else if (input$mostrar_naoruidos == FALSE) { 
       totalpp(0) 
     } else { 
-      totalpp(npoints(las)) 
-    }
+          totalpp(npoints(las)) 
+      }
     
     list(ruidos = ruidos, nao_ruidos = nao_ruidos, xlim = xlim, ylim = ylim,
          zlim = zlim, cor_ruidos = cor_ruidos, cor_nao_ruidos = cor_nao_ruidos,
          mostrar_naoruidos = mostrar_naoruidos)
   })
-  
-  output$plot_ruidos <- renderRglwidget({
-    dados <- plot_data()
-    req(dados)
     
-    ruidos <- dados$ruidos
-    nao_ruidos <- dados$nao_ruidos
-    xlim <- dados$xlim; ylim = dados$ylim; zlim = dados$zlim
-    cor_ruidos <- dados$cor_ruidos
-    cor_nao_ruidos <- dados$cor_nao_ruidos
-    mostrar_naoruidos <- dados$mostrar_naoruidos
-    
+    output$plot_ruidos <- renderRglwidget({
+      dados <- plot_data()
+      req(dados)
+      
+      if (is.null(dados) || is.null(lasRuidos())) {
+        rgl::open3d(useNULL = TRUE)
+        rgl::clear3d()
+        return(rglwidget())
+      }
+      
+      ruidos <- dados$ruidos
+      nao_ruidos <- dados$nao_ruidos
+      xlim <- dados$xlim; ylim = dados$ylim; zlim = dados$zlim
+      cor_ruidos <- dados$cor_ruidos
+      cor_nao_ruidos <- dados$cor_nao_ruidos
+      mostrar_naoruidos <- dados$mostrar_naoruidos
+      
     withProgress(message = "Renderizando 3D...", {
+    
+    open3d()
+    bg3d("white")
+    par3d(windowRect = c(100, 100, 800, 800))
+    
+    if (mostrar_naoruidos && npoints(nao_ruidos) > 0) {
+      tem_rgb <- all(c("R", "G", "B") %in% names(nao_ruidos@data))
       
-      open3d()
-      bg3d("white")
-      par3d(windowRect = c(100, 100, 800, 800))
-      
-      if (mostrar_naoruidos && npoints(nao_ruidos) > 0) {
-        tem_rgb <- all(c("R", "G", "B") %in% names(nao_ruidos@data))
-        
-        if (cor_nao_ruidos == "rgb" && tem_rgb) {
-          rgb_mat <- nao_ruidos@data[, c("R", "G", "B")]
-          max_rgb <- max(rgb_mat, na.rm = TRUE)
-          divisor <- if (max_rgb > 255) 65535 else 255
-          cores <- rgb(rgb_mat$R / divisor, rgb_mat$G / divisor, rgb_mat$B / divisor)
-          plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = cores, size = 1, 
-                 add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
-        } else {
-          plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = cor_nao_ruidos, 
-                 size = 1, add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
-        }
-        
-      } else {
-        
-        plot3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1, 
+      if (cor_nao_ruidos == "rgb" && tem_rgb) {
+        rgb_mat <- nao_ruidos@data[, c("R", "G", "B")]
+        max_rgb <- max(rgb_mat, na.rm = TRUE)
+        divisor <- if (max_rgb > 255) 65535 else 255
+        cores <- rgb(rgb_mat$R / divisor, rgb_mat$G / divisor, rgb_mat$B / divisor)
+        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = cores, size = 1, 
                add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
-        nao_ruidos <- NULL
-      }
+      } else {
+        plot3d(nao_ruidos@data[, c("X", "Y", "Z")], col = cor_nao_ruidos, 
+               size = 1, add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
+        }
       
-      if (npoints(ruidos) > 0 && !is.null(nao_ruidos)) {
-        points3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1)
-      }
+    } else {
       
-      rglwidget()
+      plot3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1, 
+             add = FALSE, xlim = xlim, ylim = ylim, zlim = zlim)
+      nao_ruidos <- NULL
+    }
+    
+    if (npoints(ruidos) > 0 && !is.null(nao_ruidos)) {
+      points3d(ruidos@data[, c("X", "Y", "Z")], col = cor_ruidos, size = 1)
+    }
+    
+    rglwidget()
     })
   })
   
@@ -922,23 +1016,23 @@ server <- function(input, output, session) {
     
     fluidRow(
       column(6,
-             strong("Total de pontos ruído:"), br(), total, br(), br(),
+             strong("Pontos ruído:"), br(), total, br(), br(),
              strong("Total de pontos:"), br(), totalp
       ),
       column(6,
              strong("Percentual:"), br(), perc_formatado, br(), br(),
-             strong("Total de pontos não ruído plotados:"), br(), totalpp()
+             strong("Pontos não ruído plotados:"), br(), totalpp()
       )
     )
   })
-  
+
   
   observeEvent(input$aplicar_classificacao, {
     req(lasRuidos())
     lasData(lasRuidos())
     
     showNotification("Classificação salva!",
-                     type = "message")
+      type = "message")
   }) 
   
   observeEvent(input$aplicar_classificacao_s_r, {
@@ -947,12 +1041,14 @@ server <- function(input, output, session) {
     lasData(las_sem_ruido)
     
     showNotification("Ruídos excluídos!",
-                     type = "message")
+      type = "message")
   })
   
   observeEvent(input$limpar_memoria_r, {
     lasRuidos(NULL)
     gc()
+    try(rgl::clear3d(), silent = TRUE)
+    try(rgl::close3d(), silent = TRUE)
     showNotification("Memória liberada",
                      type = "message")
   })
@@ -972,7 +1068,8 @@ server <- function(input, output, session) {
                numericInput("cloth_resolution", "cloth_resolution", value = 0.5, step = 0.1)
         ),
         column(6,
-               selectInput("rigidness", "rigidness", choices = c(1, 2, 3), selected = 1),
+               selectInput("rigidness", "rigidness", 
+                           choices = c("Flexível" = 1, "Médio" = 2, "Rígido" = 3), selected = 1),
                numericInput("iterations", "iterations", value = 500, min = 1, step = 1),
                numericInput("time_step", "time_step", value = 0.65, step = 0.01)
         )
@@ -1008,62 +1105,62 @@ server <- function(input, output, session) {
     if (any(is.na(nums))) stop("Sequência contém valores não numéricos")
     nums
   }
-  
+    
   observeEvent(input$classificar_chao, {
     req(lasData())
     
     withProgress(message = "Classificando chão...", {
-      las <- lasData()
+    las <- lasData()
+    
+    if (input$algoritmo_solo == "csf") {
       
-      if (input$algoritmo_solo == "csf") {
-        
-        las_classificado <- classify_ground(
-          las,
-          csf(
-            sloop_smooth = as.logical(input$sloop_smooth),
-            class_threshold = input$class_threshold,
-            cloth_resolution = input$cloth_resolution,
-            rigidness = as.integer(input$rigidness),
-            iterations = as.integer(input$iterations),
-            time_step = input$time_step
-          )
+      las_classificado <- classify_ground(
+        las,
+        csf(
+          sloop_smooth = as.logical(input$sloop_smooth),
+          class_threshold = input$class_threshold,
+          cloth_resolution = input$cloth_resolution,
+          rigidness = as.integer(input$rigidness),
+          iterations = as.integer(input$iterations),
+          time_step = input$time_step
         )
-        
-      } else if (input$algoritmo_solo == "pmf") {
-        
-        ws_vals <- tryCatch(parse_seq(input$pmf_ws),
-                            error = function(e) { showNotification(paste("Erro em ws:", e$message), type = "error"); return(NULL) })
-        if (is.null(ws_vals)) return()
-        
-        th_vals <- tryCatch(parse_seq(input$pmf_th),
-                            error = function(e) { showNotification(paste("Erro em th:", e$message), type = "error"); return(NULL) })
-        if (is.null(th_vals)) return()
-        
-        # se o usuário forneceu apenas 1 threshold, repetir para cada ws
-        if (length(th_vals) == 1) {
-          th_vals <- rep(th_vals, length(ws_vals))
-        }
-        
-        if (length(th_vals) != length(ws_vals)) {
-          showNotification("Número de thresholds deve ser 1 ou igual ao comprimento de ws.", type = "error")
-          return()
-        }
-        
-        las_classificado <- classify_ground(las, pmf(ws = ws_vals, th = th_vals))
-      } else if (input$algoritmo_solo == "mcc") {
-        las_classificado <- classify_ground(
-          las, mcc(
-            s = as.numeric(input$mcc_s),
-            t = as.numeric(input$mcc_t)
-          )
-        )
+      )
+      
+    } else if (input$algoritmo_solo == "pmf") {
+      
+      ws_vals <- tryCatch(parse_seq(input$pmf_ws),
+                          error = function(e) { showNotification(paste("Erro em ws:", e$message), type = "error"); return(NULL) })
+      if (is.null(ws_vals)) return()
+      
+      th_vals <- tryCatch(parse_seq(input$pmf_th),
+                          error = function(e) { showNotification(paste("Erro em th:", e$message), type = "error"); return(NULL) })
+      if (is.null(th_vals)) return()
+      
+      # se o usuário forneceu apenas 1 threshold, repetir para cada ws
+      if (length(th_vals) == 1) {
+        th_vals <- rep(th_vals, length(ws_vals))
       }
-      lasSoloClassificado(las_classificado)
+      
+      if (length(th_vals) != length(ws_vals)) {
+        showNotification("Número de thresholds deve ser 1 ou igual ao comprimento de ws.", type = "error")
+        return()
+      }
+      
+      las_classificado <- classify_ground(las, pmf(ws = ws_vals, th = th_vals))
+    } else if (input$algoritmo_solo == "mcc") {
+      las_classificado <- classify_ground(
+        las, mcc(
+          s = as.numeric(input$mcc_s),
+          t = as.numeric(input$mcc_t)
+        )
+      )
+    }
+    lasSoloClassificado(las_classificado)
     })
     showNotification("Classificado!", type = "message")
   })
   
-  plot_data_c <- eventReactive(input$visualizar_solo, {
+ plot_data_c <- eventReactive(input$visualizar_solo, {
     req(lasSoloClassificado())
     
     withProgress(message = "Processando...", {
@@ -1094,11 +1191,17 @@ server <- function(input, output, session) {
     list(ground = ground, not_ground = not_ground, xlim = xlim, ylim = ylim,
          zlim = zlim, cor_chao = cor_chao, cor_nao_chao = cor_nao_chao,
          mostrar_outros = mostrar_outros)
-  })
-  
+ })
+ 
   output$plot_mdt <- renderRglwidget({
     dados <- plot_data_c()
     req(dados)
+    
+    if (is.null(dados) || is.null(lasSoloClassificado())) {
+      rgl::open3d(useNULL = TRUE)
+      rgl::clear3d()
+      return(rgl::rglwidget())
+    }
     
     ground <- dados$ground
     not_ground <- dados$not_ground
@@ -1188,6 +1291,8 @@ server <- function(input, output, session) {
   observeEvent(input$limpar_memoria_c, {
     lasSoloClassificado(NULL)
     gc()
+    try(rgl::clear3d(), silent = TRUE)
+    try(rgl::close3d(), silent = TRUE)
     showNotification("Memória liberada",
                      type = "message")
   })
@@ -1201,15 +1306,15 @@ server <- function(input, output, session) {
     
     if(input$algoritmo_mdt == "idw") {
       tagList(
-        numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
-        fluidRow(
-          column(6,
-                 numericInput("k", "Número de vizinhos (k)", value = 10, step = 1),
-                 numericInput("p", "Expoente (p)", value = 2, step = 1)),
-          column(6,
-                 numericInput("rmax", "Raio máximo (rmax)", value = 50, step = 1))
-        )
+      numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
+      fluidRow(
+        column(6,
+               numericInput("k", "Número de vizinhos (k)", value = 10, step = 1),
+               numericInput("p", "Expoente (p)", value = 2, step = 1)),
+        column(6,
+               numericInput("rmax", "Raio máximo (rmax)", value = 50, step = 1))
       )
+    )
     } else if (input$algoritmo_mdt == "tin") {
       tagList(
         numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
@@ -1229,7 +1334,7 @@ server <- function(input, output, session) {
       )
     }
   })
-  
+    
   observeEvent(input$gerar_mdt, {
     req(lasData())
     las <- lasData()
@@ -1244,7 +1349,7 @@ server <- function(input, output, session) {
       }
       
       if (input$algoritmo_mdt == "idw") {
-        mdt_calc <- grid_terrain(
+        mdt_calc <- rasterize_terrain(
           las,
           res = input$res,
           knnidw(k = as.integer(input$k),
@@ -1252,13 +1357,13 @@ server <- function(input, output, session) {
                  rmax = input$rmax)
         )
       } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Não") {
-        mdt_calc <- grid_terrain(
+        mdt_calc <- rasterize_terrain(
           las,
           res = input$res,
           tin()
         )
       } else if (input$algoritmo_mdt == "tin" & input$alterar_extrap == "Sim") {
-        mdt_calc <- grid_terrain(
+        mdt_calc <- rasterize_terrain(
           las,
           res = input$res,
           tin(extrapolate = knnidw(
@@ -1268,29 +1373,35 @@ server <- function(input, output, session) {
           ))
         )
       }
-      
-      # salva no reativo
       mdt(mdt_calc)
     })
   })
-  
-  
+      
   output$plot_mdtn <- renderRglwidget({
     req(mdt())
+    tmdt <- mdt()
+    
+    if (is.null(tmdt)) {
+      rgl::open3d(useNULL = TRUE)
+      rgl::clear3d()
+      return(rgl::rglwidget())
+    }
     
     withProgress(message = "Renderizando 3D...", {
-      plot_dtm3d(mdt(), bg = "white")
-      rglwidget()
+    plot_dtm3d(mdt(), bg = "white")
+    rglwidget()
     })
   })
-  
+
   observeEvent(input$aplicar_normalizacao, {
     req(lasData())
     req(mdt())
     
     withProgress(message = "Normalizando...", {
-      lasn <- normalize_height(lasData(), mdt())
-      lasNormalizado(lasn)
+    lasn <- normalize_height(lasData(), mdt())
+    lasNormalizado(lasn)
+    showNotification("Normalizado.",
+                     type = "message")
     })
   })
   
@@ -1334,19 +1445,56 @@ server <- function(input, output, session) {
     req(vals)
     
     tagList(
+    fluidRow(
+      column(6, 
+             strong("Z máx:"), br(), vals$zmax, br(), br(),
+             strong("Z médio:"), br(), round(vals$zmed, 3), br(), br(),
+             strong("Pontos degenerados:"), br(), vals$degp),
+      column(6, 
+             strong("Z min:"), br(), round(vals$zmin, 4), br(), br(),
+             strong("Z amplitude:"), br(), vals$zamp)
+    ),
+    
+    fluidRow(
+      column(12,
+             plotlyOutput("hist_chao_plotly", height = "300px"))
+     )
+    )
+  })
+  
+  mdt_metricas <- reactive({
+    req(mdt())
+    
+    vals <- terra::values(mdt())
+    tam_vals <- length(vals)
+    invalid_vals <- sum(is.na(vals))
+    perc_inv_vals <- invalid_vals / tam_vals * 100
+    
+    min_vals <- min(vals, na.rm = TRUE)
+    max_vals <- max(vals, na.rm = TRUE)
+    ampl_vals <- max_vals - min_vals
+    
+    list(tam_vals = tam_vals,
+         invalid_vals = invalid_vals,
+         perc_inv_vals = perc_inv_vals,
+         min_vals = min_vals,
+         max_vals = max_vals,
+         ampl_vals = ampl_vals)
+  })
+  
+  output$diag_mdt <- renderUI({
+    m <- mdt_metricas()
+    
+    tagList(
       fluidRow(
-        column(6, 
-               strong("Z máx:"), br(), vals$zmax, br(), br(),
-               strong("Z médio:"), br(), round(vals$zmed, 3), br(), br(),
-               strong("Pontos degenerados:"), br(), vals$degp),
-        column(6, 
-               strong("Z min:"), br(), round(vals$zmin, 4), br(), br(),
-               strong("Z amplitude:"), br(), vals$zamp)
-      ),
-      
-      fluidRow(
-        column(12,
-               plotlyOutput("hist_chao_plotly", height = "300px"))
+        column(6,
+               strong("Número de pixels:"), br(), m$tam_vals, br(), br(),
+               strong("Número de píxels inválidos:"), br(), m$invalid_vals, br(), br(),
+               strong("Percentual de píxels inválidos:"), br(), round(m$perc_inv_vals,2)),
+        column(6,
+               strong("Valor máximo:"), br(), round(m$max_vals,2), br(), br(),
+               strong("Valor mínimo:"), br(), round(m$min_vals, 2), br(), br(),
+               strong("Amplitude:"), br(), round(m$ampl_vals, 2))
       )
     )
   })
@@ -1358,7 +1506,7 @@ server <- function(input, output, session) {
     content = function(file) {
       req(mdt())
       
-      raster::writeRaster(mdt(), file, format = "GTiff", overwrite = TRUE)
+      raster::writeRaster(mdt(), file, filetype = "GTiff", overwrite = TRUE)
     }
   )
   
@@ -1367,9 +1515,194 @@ server <- function(input, output, session) {
     req(lasNormalizado())
     
     withProgress(message = "Salvando normalização...", {
-      lasData(lasNormalizado())
+    lasData(lasNormalizado())
+      showNotification("Salvo.",
+                       type = "message")
     })  
   })
+
+  observeEvent(input$limpar_memoria_s, {
+    mdt(NULL)
+    gc()
+    showNotification("Memória liberada",
+                     type = "message")
+  })
+  
+#########      
+#Aba MDS#
+#########
+
+output$parametros_mds <- renderUI({
+  req(input$algoritmo_mds)
+  
+  if(input$algoritmo_mds == "pf") {
+    tagList(
+      numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
+      fluidRow(
+        column(6,
+               textInput("th", "Limites de altura (metros)", value = "0,5,10,20,30"),
+               textInput("me", "Máximo lado do triângulo (metros)", value = "0,1")),
+        column(6,
+               numericInput("sb", "Raio do círculo (metros)", value = 0, step = 0.1),
+               checkboxInput("h", "Ponto mais alto por pixel", value = TRUE)
+               )
+      )
+    )
+  } else if (input$algoritmo_mds == "p2r") {
+    tagList(
+      numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
+        fluidRow(
+          column(6,
+                 numericInput("sb", "Raio do círculo (metros)", value = 0, step = 0.1),
+                  ),
+          column(6,
+                 selectInput("fill", "Função de interpolação", 
+                             choices = c("Nenhum" = "none", "KNN-IDW" = "knnidw", "TIN" = "tin", "Kriging" = "kriging"),
+                             selected = "none"))
+        )
+      )
+  } else if (input$algoritmo_mds == "tin") {
+    tagList(
+      numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
+      fluidRow(
+        column(6,
+               numericInput("me", "Máximo lado do triângulo (metros)", value = 2)),
+        column(6,
+               checkboxInput("h", "Ponto mais alto por pixel", value = TRUE)
+        )))
+  }
+})
+
+  parse_seq <- function(txt) {
+    vals <- unlist(strsplit(txt, "[,;\\s]+"))   # aceita vírgula, ponto-e-vírgula ou espaços
+    vals <- trimws(vals)
+    vals <- vals[vals != ""]
+    nums <- as.numeric(vals)
+    if (any(is.na(nums))) stop("Sequência contém valores não numéricos")
+    nums
+  }
+  
+observeEvent(input$gerar_mds, {
+  req(lasData())
+  las <- lasData()
+  
+  tem_return_number <- "ReturnNumber" %in% names(las@data) &&
+    mean(!is.na(las@data$ReturnNumber) & las@data$ReturnNumber > 0) > 0.95
+  
+    if (input$algoritmo_mds %in% c("pf", "tin") && !tem_return_number) {
+      showNotification(
+        "⚠️ A nuvem de pontos não possui valores válidos de 'ReturnNumber'. 
+        Os algoritmos Pit-free e TIN exigem retornos válidos (first returns). 
+        Use o método 'p2r' para nuvens sem esta informação.",
+        type = "error", duration = 10
+      )
+      return()
+    }
+  
+    if (input$algoritmo_mds %in% "tin" && input$res >= input$me) {
+      showNotification(
+        "⚠ Neste algoritmo o lado máximo do triângulo não pode ser igual ou menor que a resolução escolhida.",
+        type = "error", duration = 10
+      )
+      return()
+    }
+  
+  withProgress(message = "Gerando MDS...", {
+    
+    if (input$algoritmo_mds == "pf") {
+      th_v <- tryCatch(parse_seq(input$th),
+                       error = function(e) {showNotification(paste("Erro em th:", e$message), type = "error"); return(NULL) })
+      if (is.null(th_v)) return()
+      me_v <- tryCatch(parse_seq(input$me),
+                       error = function(e) {showNotification(paste("Erro em me:", e$message), type = "error"); return(NULL) })
+      if (is.null(me_v)) return()
+      mds_calc <- tryCatch({
+        rasterize_canopy(las, res = input$res,
+        pitfree(thresholds = th_v, max_edge = me_v, 
+                subcircle = input$sb, highest = as.logical(input$h))
+      )
+        })
+      
+   } else if (input$algoritmo_mds == "p2r") {
+     na_fill <- switch(input$fill,
+                       "none"    = NULL,
+                       "knnidw"  = lidR::knnidw(),  
+                       "tin"     = lidR::tin(),     
+                       "kriging" = lidR::kriging())  
+     
+     mds_calc <- rasterize_canopy(
+        las,
+        res = input$res,
+        p2r(subcircle = input$sb, na.fill = na_fill)
+      )
+      
+    } else if (input$algoritmo_mds == "tin") {
+      mds_calc <- rasterize_canopy(
+        las,
+        res = input$res,
+        dsmtin(max_edge = input$me, highest = as.logical(input$h))
+        )
+    }
+    mds(mds_calc)
+  })
+})
+
+output$plot_mds <- renderRglwidget({
+  req(mds())
+  
+  withProgress(message = "Renderizando 3D...", {
+    plot_dtm3d(mds(), bg = "white")
+    rglwidget()
+  })
+})
+
+mds_metricas <- reactive({
+  req(mds())
+  
+  vals <- terra::values(mds())
+  tam_vals <- length(vals)
+  invalid_vals <- sum(is.na(vals))
+  perc_inv_vals <- invalid_vals / tam_vals * 100
+  
+  min_vals <- min(vals, na.rm = TRUE)
+  max_vals <- max(vals, na.rm = TRUE)
+  ampl_vals <- max_vals - min_vals
+  
+  list(tam_vals = tam_vals,
+       invalid_vals = invalid_vals,
+       perc_inv_vals = perc_inv_vals,
+       min_vals = min_vals,
+       max_vals = max_vals,
+       ampl_vals = ampl_vals)
+  })
+
+output$diag_mds <- renderUI({
+  m <- mds_metricas()
+  
+  tagList(
+    fluidRow(
+      column(6,
+             strong("Número de pixels:"), br(), m$tam_vals, br(), br(),
+             strong("Número de píxels inválidos:"), br(), m$invalid_vals, br(), br(),
+             strong("Percentual de píxels inválidos:"), br(), round(m$perc_inv_vals, 2)),
+      column(6,
+             strong("Valor máximo:"), br(), round(m$max_vals,2), br(), br(),
+             strong("Valor mínimo:"), br(), round(m$min_vals, 2), br(), br(),
+             strong("Amplitude:"), br(), round(m$ampl_vals, 2))
+    )
+  )
+})
+
+output$baixar_mds <- downloadHandler(
+  filename = function() {
+    paste0("mds_", Sys.Date(), ".tif")
+  },
+  content = function(file) {
+    req(mds())
+    
+    raster::writeRaster(mds(), file, filetype = "GTiff", overwrite = TRUE)
+    }
+  )
 }
 
 shinyApp(ui, server)
