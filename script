@@ -779,6 +779,13 @@ ui <- fluidPage(
                                     div(style = "text-align: center; padding: 30px; background-color: #f8f9fa; border-radius: 10px;",
                                         h1("ProcessaLAS", style = "color: #2c3e50; font-weight: bold; margin-bottom: 0px;"),
                                         p("Análise e processamento inicial de nuvens de pontos LiDAR.", style = "font-size: 18px; color: #7f8c8d;"),
+                                        p("Para acessar o manual e/ou a versão mais atual, acesse:", style = "font-size: 12px; color: #7f8c8d;"),
+                                        a(href = "https://github.com/Pedro-ASC/R-WebApp-Shiny-ProcessaLAS", 
+                                          target = "_blank", 
+                                          class = "btn btn-default",
+                                          style = "margin-bottom: 20px; color: #2c3e50; border-color: #bdc3c7;",
+                                          icon("github"), " GitHub"),
+                                        
                                         br(),
                                         p("Fluxo de trabalho proposto:", style = "font-size: 15px; color: #7f8c8d;")
                                     )
