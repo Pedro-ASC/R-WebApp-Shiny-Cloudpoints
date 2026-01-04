@@ -1,4 +1,4 @@
-# R-WebApp-Shiny-Cloudpoints
+# R-WebApp-Shiny-Nuvem de pontos
 Aplicativo Web com interface criado através do pacote Shiny do Software R, para diagnóstico e tratamentos iniciais de nuvens de pontos oriundas de scanners Lidar.
 Para fins didáticos. Em construção.
 
