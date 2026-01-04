@@ -1,6 +1,13 @@
-# App Shiny: Diagnóstico e Tratamento de Nuvens de Pontos LiDAR
+##################################################
+## ProcessaLAS: Análise e Processamento Inicial ## 
+## de Nuvens de Pontos LiDAR                    ##
+## versão 1.0                                   ##
+##################################################
+## Criado por: Pedro A. S. C.                   ##
+## Contato: pedroasoresc@gmail.com              ##
+##################################################
 
-options(shiny.maxRequestSize = 500 * 1024^2)
+options(shiny.maxRequestSize = 500 * 1024^2) #Altera o limite de tamanho de update.
 options(rgl.useNULL = TRUE)
 
 library(sf)
@@ -44,27 +51,116 @@ ui <- fluidPage(
     max-width: 100%;
   }
   ")),
-  titlePanel("Diagnóstico e Processamento de Nuvens de Pontos"),
+  titlePanel(" "),
   sidebarLayout(
     sidebarPanel(
       
+      ################
+      #Início Sidebar#      
+      ################
+      
+      conditionalPanel(
+        condition = "input.aba_ativa == 'Início'",
+        h2("Painel Lateral", style = "text-align: center;"),
+        h6("Aqui é realizada a entrada de arquivos, valores e configurações que serão usados no processamento."),
+        
+        hr(),
+        
+        h4("Você encontrará:"),
+      
+        hr(), 
+        
+        fileInput("ex_tutorial", "Entrada da Nuvem de pontos:", 
+                  placeholder = "Ex: nuvem_projeto_01.las/.laz",
+                  buttonLabel = "Procurar...") %>% 
+          tagAppendAttributes(style = "pointer-events: none; opacity: 1;"),
+        helpText(HTML("Carregue a nuvem de pontos que será processada.
+                 <br>Limite máximo sugerido: 512 MB"),
+                 style = "margin-top: -30px;"),
+        
+        hr(),
+        
+        actionButton("ex_tutorial", "Botão de Ação"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_tutorial", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_tutorial", 
+          title = "Breve explicação.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        helpText(HTML("Executará algum processamento. Pode demorar.
+                 <br>Revise os parâmetros e configurações antes de clicar.")),
+        
+        hr(),
+        
+        checkboxInput("ex_tutorial", "Caixa de seleção."),
+        helpText(HTML("Selecionada é Verdadeiro (TRUE)."),
+                 style = "margin-top: -15px;"),
+        
+        hr(),
+        
+        downloadButton("ex_tutorial", "Botão de Download") %>%
+                       tagAppendAttributes(style = "pointer-events: none; opacity: 1;"),
+        helpText(HTML("Faz o download da última nuvem de pontos salva no aplicativo.")),
+        hr(),
+        
+        bsCollapse(id = "ex_tutorial", open = NULL,
+                   bsCollapsePanel("Seção de ajuda ▼", 
+                   HTML("<ul><li>Informação resumida e relevante.</li></ul>"))
+        ),
+        helpText(HTML("Clique."), style = "margin-top: -5px")
+      ),
+      
       #########################
-      #Aba Diagnóstico Sidebar#      
+      #Aba Análise Sidebar#      
       #########################
       
       conditionalPanel(
-        condition = "input.aba_ativa == 'Diagnóstico'",
+        condition = "input.aba_ativa == 'Análise'",
         
-        h4("Carregue um arquivo .las/.laz"),
-        fileInput("lasfile", "",accept = c(".las", ".laz")),
+        h4("Carregue a Nuvem de pontos"),
+        fileInput("lasfile", "",accept = c(".las", ".laz"), 
+                  buttonLabel = "Procurar...",
+                  placeholder = ".las/.laz") %>% 
+          tagAppendAttributes(style = "margin-top: -15px;"),
+        
         hr(),
         
-        h4("Diagnóstico"),
+        h4("Análise"),
         actionButton("gerar_diag", "Gerar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_diag", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_diag", 
+          title = "Geração de métricas de todos os atributos de um arquivos .las/.laz.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        
         hr(),
         
         h4("Classificação"),
         actionButton("limpar_classificacao", "Zerar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_class", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_class", 
+          title = "Atribui o valor zero (nunca classificado) no atributo Classification para todos os pontos.",
+          placement = "right", 
+          trigger = "hover",
+          options = list(container = "body")
+        ),
+        
         hr(),
         
         h4("Download"),
@@ -73,23 +169,34 @@ ui <- fluidPage(
         hr(),
         
         h4("Índice Espacial (.lax)"),
-        fileInput("arquivo_las", "Selecione a nuvem de pontos salva (ou outra)", accept = c(".las", ".laz")),
+        fileInput("arquivo_las", "Selecione o caminho de uma nuvem de pontos", accept = c(".las", ".laz"),
+                  buttonLabel = "Procurar...",
+                  placeholder = ".las/.laz"),
         actionButton("gerar_lax", "Criar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_lax", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_lax", 
+          title = "Cria um arquivo LAX a partir do endereço de qualquer arquivo LAS/LAZ. A nuvem selecionada não ocupa memória.",
+          placement = "right", 
+          trigger = "hover"
+        ),
         hr(),
         
         h4("Ajuda"),
-        tags$a("LAS Specification 1.4 - R15", href = "#", 
-               onclick = "window.open('https://www.asprs.org/wp-content/uploads/2019/07/LAS_1_4_r15.pdf', '_blank'); return false;"),
         bsCollapse(id = "explicacoes_las", open = NULL,
                    bsCollapsePanel("X, Y, Z ▼", HTML("<ul><li>Coordenadas espaciais do ponto no espaço.</li>
                                               <li>Valores de X e Y menores que 1000 tendem a indicar sistemas de coordenada local.</li>
-                                              <li>bbox = bounding box (caixa em torno da nuvem de pontos).</li>
-                                              <li>'Scale Factor' e 'Offset Value' são valores utilizados para correção de coordenadas reduzidas.</li></ul>")),
+                                              <li>bbox = bounding box (caixa delimitadora em torno da nuvem de pontos).</li>
+                                              <li>'Scale Factor' e 'Offset Value' são valores utilizados para correção de coordenadas reduzidas com o intuinto de economizar espaço.</li></ul>")),
                    bsCollapsePanel("Intensity ▼", HTML("<ul><li>Valor que representa a magnitude do retorno do pulso, ou seja, quanto do pulso foi refletido de volta pro sensor.</li>
-                                                   <li>Superfícies mais reflexivas tendem a gerar valores maiores.</li></ul>")),
+                                                   <li>Menores distâncias, superfícies mais reflexivas e ângulos de incidência perpendiculares do pulso laser tendem a gerar valores maiores.</li></ul>")),
                    bsCollapsePanel("ReturnNumber ▼", HTML("<ul><li>Número sequencial do retorno para aquele pulso.</li>
                                                       <li>Cada vez que o pulso atravessa uma superfície e retorna ao sensor.</li></ul>")),
-                   bsCollapsePanel("NumberOfReturns ▼", HTML("<ul><li>Número total de retornos detectados para aquele pulso.</li></ul>")),
+                   bsCollapsePanel("NumberOfReturns ▼", HTML("<ul><li>Quantidade total de retornos detectados para aquele pulso.</li></ul>")),
                    bsCollapsePanel("ScanDirectionFlag ▼", HTML("<ul><li>Utilizado para equipamentos com scanner rotativo.
                                                            <ul><li>1 <- Scanner voltado para a esquerda em relação à direção do vôo</li>
                                                            <li>0 <- Scanner voltado para a direita (ou quando o equipamento não for rotativo).</li></ul></li></ul>")),
@@ -107,10 +214,10 @@ ui <- fluidPage(
                    bsCollapsePanel("PointSourceID ▼", HTML("<ul><li>Identificador temporal da origem do ponto.</li>
                                                        <li>Vôos diferentes, por exemplo, tem PointSourceID diferentes.</li>")),
                    bsCollapsePanel("GPS Time ▼", HTML("<ul><li>Instante exato em que o pulso foi emitido.</li>
-                                                  <li>Medido a partir do tempo base do sistema GPS.</li></ul>")),
+                                                  <li>Medido a partir do tempo base do sistema GPS Week Time.</li></ul>")),
                    bsCollapsePanel("RGB ▼", HTML("<ul><li>Valores das bandas Vermelho, Verde e Azul associadas ao ponto.</li></ul>")),
                    bsCollapsePanel("Compressão (.laz) ▼", HTML("<ul><li>Arquivo .las comprimido sem perda de dados.</li>
-                                                               <li>Compatível com .lax.<li>
+                                                               <li>Compatível com .lax.</li>
                                                                <li>Salvar/ler/comprimir/descomprimir exige processamento ligeiramente maior.</li></ul>")),
                    bsCollapsePanel("Indexação (.lax) ▼", HTML("<ul><li>Arquivo auxiliar que permite leitura rápida de regiões da nuvem de pontos.</li>
                                                               <li>Economiza processamento ao evitar a leitura do arquivo completo.</li>
@@ -163,7 +270,7 @@ ui <- fluidPage(
                       value = TRUE),
         
         conditionalPanel(condition = "input.subamostrar == true",
-                         numericInput("ppmc", "Número máximo de pontos por m³", value = 16, min = 1,
+                         numericInput("ppmc", "Quantidade máxima de pontos por m³", value = 16, min = 1,
                                       max = 250, step = 1)),
         
         fluidRow(
@@ -185,19 +292,52 @@ ui <- fluidPage(
         
         h4("Classificação"),
         actionButton("aplicar_classificacao", "Salvar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_sal", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_sal", 
+          title = "Salva a nuvem de pontos, conforme última classificação, no aplicativo. Agora você pode usá-la nas outras abas.",
+          placement = "right", 
+          trigger = "hover"
+        ),
         hr(),
         
         h4("Pontos ruído"),
         actionButton("aplicar_classificacao_s_r", "Excluir"),
-        hr(), 
-        
-        h4("Memória de renderização"),
-        actionButton("limpar_memoria_r", "Limpar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_exc", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_exc", 
+          title = "Exclui os pontos classificados como ruído. Em seguida salva a nuvem de pontos no aplicativo.",
+          placement = "right", 
+          trigger = "hover"
+        ),
         hr(),
         
         h4("Download"),
         checkboxInput("comprimir", "Comprimir (.laz)", value = TRUE),
         downloadButton("salvar_las_r", ""),
+        hr(), 
+        
+        h4("Memória de renderização"),
+        actionButton("limpar_memoria_r", "Limpar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_limp", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_limp", 
+          title = "Exclui a nuvem de pontos da aba, mas não do aplicativo. Libera memória. Para visualizar novamente é necessário classificar.",
+          placement = "right", 
+          trigger = "hover"
+        ),
         hr(),
         
         h4("Ajuda"),
@@ -219,8 +359,8 @@ ui <- fluidPage(
                                    HTML("<span style='font-size:smaller;'><ul>
                         <li>O espaço 3D é dividido em voxels cúbicos com lado igual a 'res'.</li>
                         <li>Para cada ponto, é analisada uma vizinhança cúbica de 3×3×3 voxels, ou seja, o voxel central e seus 26 vizinhos imediatos.</li>
-                        <li>O algoritmo conta o número total de pontos presentes nesses 27 voxels.</li>
-                        <li>Se o número total de pontos (nos 27 voxels) for menor que 'n' então o ponto em questão é considerado ruído (por estar em uma região muito isolada).</li>
+                        <li>O algoritmo conta a quantidade total de pontos presentes nesses 27 voxels.</li>
+                        <li>Se a quantidade total de pontos (nos 27 voxels) for menor que 'n' então todos os pontos são considerados ruído (por estar em uma região muito isolada).</li>
                         </ul></span>")),
                    bsCollapsePanel("Subamostragem ▼", HTML("<span style='font-size:smaller;'><ul>
                         <li>A nuvem de pontos é voxelizada em uma grade cúbica com lado igual a 1.</li>
@@ -256,7 +396,7 @@ ui <- fluidPage(
         checkboxInput("mostrar_outros", "Mostrar pontos não chão", value = TRUE),
         
         conditionalPanel(condition = "input.subamostrar_chao == true",
-                         numericInput("ppmc_c", "Número máximo de pontos por m³",
+                         numericInput("ppmc_c", "Quantidade máxima de pontos por m³",
                                       value = 16, min = 1, max = 250, step = 1)),
         
         fluidRow(
@@ -281,13 +421,50 @@ ui <- fluidPage(
         actionButton("aplicar_classificacao", "Salvar"),
         hr(),
         
-        h4("Memória de renderização"),
-        actionButton("limpar_memoria_c", "Limpar"),
-        hr(),
-        
         h4("Download"),
         checkboxInput("comprimir", "Comprimir (.laz)", value = TRUE),
-        downloadButton("salvar_las_c", ""),
+        downloadButton("salvar_las_c", "Completo"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_dc", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_dc", 
+          title = "Baixa a nuvem de pontos com todos os pontos.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        br(), br(),
+        downloadButton("salvar_las_cpc", "Apenas pontos-chão"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_cpc", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_cpc", 
+          title = "Baixa a nuvem de pontos apenas com os pontos classificados como chão.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        br(), br(),
+        downloadButton("salvar_las_cv", "Sem pontos-chão"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_spc", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_spc", 
+          title = "Baixa a nuvem de pontos com todos os pontos excluindo os classificados como chão.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        hr(),
+        
+        h4("Memória de renderização"),
+        actionButton("limpar_memoria_c", "Limpar"),
         hr(),
         
         h4("Ajuda"),
@@ -296,19 +473,19 @@ ui <- fluidPage(
         bsCollapse(id = "explicacoes_algoritmos", open = NULL,
                    
                    bsCollapsePanel("CSF (Cloth Simulation Filter) ▼", HTML("<span style='font-size:smaller;'><ul>
-    <li>Inverte a nuvem de pontos (Cabeça pra baixo) e simula um 'pano' caindo sobre o terrano, que se ajusta aos pontos e ajuda a identificar o solo.</li>
+    <li>Inverte a nuvem de pontos (Cabeça pra baixo) e simula um 'pano' caindo sobre o terreno, que se ajusta aos pontos e ajuda a identificar o solo.</li>
     <li>Os pontos são classificados de acordo com sua distância vertical ao pano simulado.</li>
     <li>Adequado para terrenos irregulares e vegetação densa.</li>
     <li><strong>Parâmetros</strong>:
     <ul><li><em>Encosta íngreme (sloop_smoth)</em>: Aplica correção para terrenos íngremes.</li>
-    <li><em>Limite distância vertical (class_threshold)</em>: Real positivo. Limite da distância vertical entre um ponto e o 'pano' para ser classificado como chão.</li>
-    <li><em>Resolução 'pano' (cloth_resolution)</em>: Real positivo. Distância entre os nós da malha (grade) do 'pano'.</li>
+    <li><em>Limite distância vertical (class_threshold)</em>: Racional positivo. Limite da distância vertical entre um ponto e o 'pano' para ser classificado como chão.</li>
+    <li><em>Resolução 'pano' (cloth_resolution)</em>: Racional positivo. Distância horizontal entre os nós da malha (grade) do 'pano'.</li>
     <li><em>Rigidez (rigidness)</em>: Controla a rigidez com que o 'pano' dobra. Quanto mais flexível mais o nó da grade se deslocará verticalmente até o próximo ponto. (Lembre-se: O 'pano' está caindo)
       <ul><li>Flexível (maior adaptação)</li>
           <li>Médio</li>
           <li>Rígido (menor adaptação)</li></ul></li>
     <li><em>Iterações (iterations)</em>: Inteiro positivo. Valor padrão. Máximo de iterações na simulação da queda do 'pano'.</li>
-    <li><em>Distância passo (time_step)</em>: Real positivo. Valor padronizado. Passo do deslocamento vertical descendente (queda).</li></ul> 
+    <li><em>Distância passo (time_step)</em>: Racional positivo. Valor padronizado. Passo do deslocamento vertical descendente (queda).</li></ul> 
   </ul>
   <p><a href='https://www.mdpi.com/2072-4292/8/6/501' target='_blank'>Zhang et al., 2016</a></p>
   </span>")),
@@ -322,21 +499,21 @@ ui <- fluidPage(
     <li>É adequado para áreas planas e topografia simples.</li>
     <li>É sensível à escolha do tamanho da janela e a distância aceitável entre ponto e superfície.</li>
     <li><strong>Parâmetros</strong>:
-    <ul><li><em>Tamanho janela (ws)</em>: Real positivo. Lista. Tamanho das janelas aplicadas progressivamente.</li>
-    <li><em>Limite (th)</em>: Real positivo. Lista (de comprimento igual ao ws). Distâncias máximas entre superfície estimada e ponto.</li></ul>
+    <ul><li><em>Tamanho janela (ws)</em>: Racional positivo. Lista. Tamanho das janelas aplicadas progressivamente.</li>
+    <li><em>Limite (th)</em>: Racional positivo. Lista (de comprimento igual ao ws). Distâncias máximas entre superfície estimada e ponto.</li></ul>
     <li>Os parâmetros podem ser calculados pela função 'util_makeZhangParam' disponível no pacote lidR.</ul>
     <p><a href='https://www.researchgate.net/publication/3203162_A_progressive_morphological_filter_for_removing_nonground_measurements_from_airborne_LIDAR_data' 
-      target='_blank'>Zhang et al., 2013</a></p><span>")),
+      target='_blank'>Zhang et al., 2003</a></p><span>")),
                    
                    bsCollapsePanel("MCC (Multiscale Curvature Classification) ▼", 
                                    HTML("<span style='font-size:smaller;'<ul>
     <li>Utiliza a curvatura local da superfície em múltiplas escalas para distinguir pontos de solo e vegetação.</li>
-    <li>Ele avalia o formato da superfície ao redor de cada ponto em diferentes tamanhos de vizinhança, identificando áreas suaves (solo) e abruptas (vegetação).</li>
+    <li>Avalia o formato da superfície ao redor de cada ponto em diferentes tamanhos de vizinhança, identificando áreas suaves (solo) e abruptas (vegetação).</li>
     <li>Funciona bem em áreas com relevo acidentado.</li>
     <li>Opção quando CSF e PMF não funcionam bem, mas é mais lento por envolver análise multiescala.</li>
     <li><strong>Parâmetros</strong>:
-    <ul><li><em>Tamanho da janela (s)</em>: Real positivo. Define o tamanho da janela que avalia a curvatura. Nuvens mais densas requerem valores menores, e nuvens mais esparsas, valores maiores.</li>
-    <li><em>Limite de curvatura (t)</em>: Real positivo. Valor máximo de curvatura para ser considerado chão.</li></ul>
+    <ul><li><em>Tamanho da janela (s)</em>: Racional positivo. Define o tamanho da janela que avalia a curvatura. Nuvens mais densas requerem valores menores, e nuvens mais esparsas, valores maiores.</li>
+    <li><em>Limite de curvatura (t)</em>: Racional positivo. Valor máximo de curvatura para ser considerado chão.</li></ul>
   </ul>
     <p><a href='https://www.researchgate.net/publication/3204849_A_Multiscale_Curvature_Algorithm_for_Classifying_Discrete_Return_LiDAR_in_Forested_Environments'
       target='_blank'>Evans, Jeffrey S.; Hudak, Andrew T. 2007.</a></p></span>")),
@@ -349,16 +526,16 @@ ui <- fluidPage(
         
       ),
       
-      ##########################
-      #Aba Normalização Sidebar#      
-      ##########################
+      #################
+      #Aba MDT Sidebar#      
+      #################
       
       conditionalPanel(
-        condition = "input.aba_ativa == 'Normalização e MDT'",
+        condition = "input.aba_ativa == 'MDT'",
         
         h4("Algoritmos MDT"),
         radioButtons("algoritmo_mdt", label = NULL,
-                     choices = c("IDW" = "idw","TIN" = "tin", "Kriging" = "krig"),
+                     choices = c("KNN-IDW" = "idw","TIN" = "tin", "Krigagem" = "krig"),
                      selected = "idw"),
         
         h4("Parâmetros"),
@@ -369,16 +546,17 @@ ui <- fluidPage(
         
         h4("Download"),
         downloadButton("baixar_mdt", "MDT"),
-        hr(),
-        
-        h4("Normalização"),
-        actionButton("aplicar_normalizacao", "Aplicar"),
-        actionButton("salvar_norm", "Salvar"),
-        hr(),
-        
-        h4("Download"),
-        checkboxInput("comprimir", "Comprimir (.laz)", value = TRUE),
-        downloadButton("salvar_las_n", "Nuvem de Pontos"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_mdt", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_mdt", 
+          title = "Baixa o MDT gerado como arquivo raster de formato TIF.",
+          placement = "right", 
+          trigger = "hover"
+        ),
         hr(),
         
         h4("Memória de renderização"),
@@ -394,39 +572,29 @@ ui <- fluidPage(
         <li>Representação matemática e digital da superfície do solo, ou seja, exclui-se objetos sobre o mesmo.</li>
         <li>Raster onde cada célula contém a altitude do terreno naquele ponto.</li>
         <li>A resolução da malha (grid) corresponde ao tamanho do lado do pixel, determinando o nível de detalhe do modelo.</li>
-        <li>É gerado a partir de pontos classificados como chão ('2')</li>
+        <li>É gerado a partir de pontos classificados como chão (classe 2)</li>
                           </ul></span>")),
-                   bsCollapsePanel("Normalização ▼", 
-                                   HTML("<span style='font-size:smaller;'><ul>
-        <li>Geralmente a altura ('Z') dos pontos são calculados em altitude acima do nível médio do mar.</li>
-        <li>O processo de normalização converte essas alturas para valores relativos ao terreno, removendo a influência do relevo.</li>
-        <li>Z<i>normalizado</i> = Z<i>original</i> - Z<i>terreno</i></li>
-        <li>Assim, cada ponto passa a representar sua altura real acima do solo, facilitando o cálculo de métricas estruturais, como altura da vegetação, densidade e volume.</li>
-        <li>Pontos degenerados são caracterizados como pontos que ocupam o mesmo XY, mas com diferentes Z.
-        Isso pode trazer más consequências para processamentos em geral. 
-        Por isso, quando identificados, o programa usa os pontos com menor Z.</li>
-                          </ul></span>")),
-                   bsCollapsePanel("IDW (Inverse Distance Weighting) ▼", 
+                   bsCollapsePanel("KNN-IDW (Inverse Distance Weighting) ▼", 
                                    HTML("<span style='font-size:smaller;'><ul>
         <li>Este algoritmo é composto por dois modelos: KNN e IDW, aplicados na interpolação do Modelo Digital de Terreno (MDT) a partir dos pontos classificados como chão.</li>
         <li>KNN = K-Nearest Neighbour = Identifica, para cada ponto do terreno a ser interpolado, os k pontos de solo mais próximos.</li>
-        <li>IDW = Inverse Distance Weighting = Calcula o valor de altitude para o ponto de interesse com base na média ponderada inversa da distância aos k vizinhos identificados. Pontos mais próximos recebem maior peso na estimativa.</li>
+        <li>IDW = Inverse Distance Weighting = Calcula o valor de altitude para cada píxel com base na média ponderada inversa da distância aos k vizinhos identificados. Pontos mais próximos recebem maior peso na estimativa.</li>
         <li>No fim cada célula do raster do MDT receberá um valor de altitude que representa a superfície contínua e suavizada do terreno.</li>
         <li><strong>Parâmetros</strong>:</li>
-        <ul><li><em>k</em>: Inteiro positivo. Número de pontos vizinhos.</li>
-        <li><em>p</em>: Real positivo. Expoente da ponderação da distância inversa (define o peso dos vizinhos próximos).</li>
-        <li><em>rmax</em>: Real positivo. Raio máximo de busca para encontrar os 'k' vizinhos.</li></ul>
+        <ul><li><em>k</em>: Inteiro positivo. Quantidade de pontos vizinhos.</li>
+        <li><em>p</em>: Racional positivo. Expoente da ponderação da distância inversa (define o peso dos vizinhos próximos).</li>
+        <li><em>rmax</em>: Racional positivo. Raio máximo de busca para encontrar os 'k' vizinhos.</li></ul>
                           </ul></span>")),
                    bsCollapsePanel("TIN (Triangulated Irregular Network) ▼",
                                    HTML("<span style='font-size:smaller;'><ul>
         <li>Constrói uma triangulação de Delaunay sobre os pontos classificados como chão e estima a altitude dentro de cada triângulo por interpolação linear.</li>
-        <li>Triangulação de Delaunay = Cada ponto torna-se um vértice de um triângulo e a triangulação garante que o círculo circunscrito a cada triângulo não contenha outros pontos da amostra.</li>
+        <li>Triangulação de Delaunay = Cada ponto torna-se um vértice, assim a triangulação garante que o círculo circunscrito a cada triângulo não contenha outros pontos.</li>
         <li>Interpolação linear = Método matemático que estima uma valor desconhecido entre dois pontos conectado-os com uma linha reta.</li>
         <li>A limitação deste algoritmo se encontra nas bordas da nuvem de pontos, onde podem sobrar pontos que não fecham triângulos. Quando isso acontece é possível usar o parâmetro
         'Extrapolação' que usa o algoritmo IDW para preencher o que resta.</li>
         <li>Não há parâmetros para esse algoritmo.</li>
                         </ul></span>")),
-                   bsCollapsePanel("Kriging (Krigagem Universal) ▼", 
+                   bsCollapsePanel("Krigagem ▼", 
                                    HTML("<span style='font-size:smaller;'><ul>
         <li>Método avançado de interpolação geoestatística, baseado na dependência espacial entre os valores amostrados.</li>
         <li>Krigagem = Estima valores desconhecidos a partir da correlação espacial dos dados, modelada por meio de um variograma.</li>
@@ -438,14 +606,14 @@ ui <- fluidPage(
         )
       ),
       
-      #########
-      #Aba MDS#      
-      #########
+      ############################
+      #Aba Normalização MDS / CHM#      
+      ############################
       
       conditionalPanel(
-        condition = "input.aba_ativa == 'MDS'",
+        condition = "input.aba_ativa == 'MDS, Normalização e CHM'",
         
-        h4("Algoritmos MDS"),
+        h4("Algoritmos MDS / CHM"),
         radioButtons("algoritmo_mds", label = NULL,
                      choices = c("P2R" = "p2r", "TIN" = "tin", "Pit-free" = "pf"),
                      selected = "p2r"),
@@ -453,11 +621,75 @@ ui <- fluidPage(
         h4("Parâmetros"),
         uiOutput("parametros_mds"),
         
-        actionButton("gerar_mds", "Gerar MDS"),
+        actionButton("gerar_mds", "Gerar MDS / CHM"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_mdschm", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_mdschm", 
+          title = "MDS é gerado a partir de uma nuvem de pontos salva não normalizada. CHM é gerado a partir de uma nuvem de pontos salva normalizada.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        
+        hr(),
+        
+        h4("Normalização"),
+        actionButton("aplicar_normalizacao", "Aplicar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_apl", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_apl", 
+          title = "Normaliza a altura da nuvem de pontos. Utiliza o último MDT gerado.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        
+        br(),
+        br(),
+        
+        actionButton("salvar_norm", "Salvar"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_salv", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_salv", 
+          title = "Salva a nuvem de pontos normalizada no aplicativo. Agora você pode gerar um CHM.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        
         hr(),
         
         h4("Download"),
-        downloadButton("baixar_mds", "MDS"),
+        downloadButton("baixar_mds", "MDS / CHM"),
+        span(
+          icon("info-circle"), 
+          id = "ajuda_mds", 
+          style = "color: #b5b5b5; cursor: help; margin-left: 5px; font-size: 0.9em; vertical-align: middle;"
+        ),
+        bsTooltip(
+          id = "ajuda_mds", 
+          title = "Baixa o MDS ou CHM gerado como arquivo raster de formato TIF.",
+          placement = "right", 
+          trigger = "hover"
+        ),
+        hr(),
+        
+        h4("Download"),
+        checkboxInput("comprimir", "Comprimir (.laz)", value = TRUE),
+        downloadButton("salvar_las_n", "Nuvem de Pontos"),
+        hr(),
+        
+        h4("Memória de renderização"),
+        actionButton("limpar_memoria_mds", "Limpar"),
         hr(),
         
         h4("Ajuda"),
@@ -469,15 +701,32 @@ ui <- fluidPage(
                    <li>Representação matemática e digital da superfície do terreno, incluindo todos os objetos sobre ele, como vegetação, edificações e outras estruturas.</li>
                    <li>Raster onde cada célula contém a altitude da superfície naquele ponto</li>
                    <li>Resolução da malha (grid) = medida do lado do pixel.</li>
-                   <li>Pode ser gerado pelos primeiros retornos (ReturnNumber) ou pelos pontos mais altos em cada píxel.</li>
+                   <li>Utiliza os primeiros retornos (ReturnNumber) ou pontos mais altos em cada píxel.</li>
+                   <li>Gerado a partir de uma nuvem de pontos não normalizada.</li>
                         </ul></span>")),
+                   bsCollapsePanel("Normalização ▼", 
+                                   HTML("<span style='font-size:smaller;'><ul>
+        <li>Geralmente a altura ('Z') dos pontos são calculados em altitude acima do nível médio do mar.</li>
+        <li>O processo de normalização converte essas alturas para valores relativos ao terreno, removendo a influência do relevo.</li>
+        <li>Z<i>normalizado</i> = Z<i>original</i> - Z<i>terreno</i></li>
+        <ul><li>Z<i>terreno</i> provém do último MDT gerado.</li></ul>
+        <li>Assim, cada ponto passa a representar sua altura real acima do solo, facilitando o cálculo de métricas estruturais, como altura da vegetação, densidade e volume.</li>
+        <li>Pontos degenerados são caracterizados como pontos que ocupam o mesmo XY, mas com diferentes Z.
+        Isso pode gerar consequências para processamentos em geral. 
+        Por isso, quando identificados, o programa usa os pontos com menor Z.</li>
+                                  </ul></span>")),
+                   bsCollapsePanel("Modelo Digital de Altura do Dossel (CHM) ▼",
+                                   HTML("<span style='font-size:smaller;'><ul>
+                    <li>Representação matemática e digital do dossel da floresta.</li>
+                    <li>Raster onde cada célula contém a altura da copa das árvores.</li>
+                    <li>Basicamente é parecido a um MDS, só que gerado a partir de uma nuvem de pontos normalizada.</li>")),
                    bsCollapsePanel("P2R (Point to Raster) ▼",
                                    HTML("<span style='font-size:smaller;'><ul>
                                    <li>Rasteriza a nuvem de pontos e atribui a cada célula o ponto de maior altura (Z) encontrado dentro dela.</li>
                                    <li>Processamento mais leve.</li>
                                    <li>Suscetível a 'buracos': depressões no modelo digital devido às células vazias (sem pontos) do raster.</li>
                                    <li><strong>Parâmetros</strong>:
-                                   <ul><li><em>Raio do círculo</em>: Real positivo. Raio de um círculo que replica o ponto original em até 8 direções horizontais, aumentando a área de influência do ponto e reduzindo lacunas.</li>
+                                   <ul><li><em>Raio do círculo</em>: Racional positivo. Raio de um círculo que replica o ponto original em até 8 direções horizontais, aumentando a área de influência do ponto e reduzindo lacunas.</li>
                                    <li><em>Função de Interpolação</em>: Função. Interpola células vazias do raster. Disponíveis:
                                     <ul><li>tin()</li>
                                     <li>knnidw()</li>
@@ -488,7 +737,7 @@ ui <- fluidPage(
                                         <li>Processamento mais leve.</li>
                                         <li>Apropriado para nuvens de pontos densas.</li>
                                         <li><strong>Parâmetros</strong>:
-                                        <ul><li><em>Máximo lado do triângulo</em>: Real positivo. Comprimento máximo permitido das arestas dos triângulos. Controla a qualidade da triangulação, evitando geometrias muito alongadas e possíveis artefatos.</li>
+                                        <ul><li><em>Máximo lado do triângulo</em>: Racional positivo. Comprimento máximo permitido das arestas dos triângulos. Controla a qualidade da triangulação, evitando geometrias muito alongadas e possíveis artefatos.</li>
                                         <li><em>Pontos mais altos por píxel</em>: Lógico. Se selecionado utiliza apenas os pontos mais altos por píxel, diminuindo processamento. Se não selecionado então usa todos os primeiros retornos (ReturnNumber).</li>
                                         </ul></li></ul></span>")),
                    bsCollapsePanel("Pit-free ▼",
@@ -497,9 +746,9 @@ ui <- fluidPage(
                                         <li>Constrói múltiplas triangulações de Delaunay em diferentes níveis de corte vertical e, em seguida, combina as superfícies resultantes para gerar um modelo contínuo e realista da superfície do dossel.</li>
                                         <li>Processamento mais pesado.</li>
                                         <li><strong>Parâmetros</strong>:
-                                        <ul><li><em>Níveis de corte vertical</em>: Real positivo. Lista. Níveis de altura para triangulação.</li>
-                                        <li><em>Máximo lado do triângulo</em>: Real positivo. Comprimento máximo permitido das arestas dos triângulos. Controla a qualidade da triangulação, evitando geometrias muito alongadas e possíveis artefatos.</li>
-                                        <li><em>Raio do círculo</em>: Real positivo. Raio de um círculo que replica o ponto original em até 8 direções horizontais, aumentando a área de influência do ponto e reduzindo lacunas.</li>
+                                        <ul><li><em>Limiares de corte vertical</em>: Racional positivo. Lista. Níveis de altura para triangulação.</li>
+                                        <li><em>Máximo lado do triângulo</em>: Racional positivo. Comprimento máximo permitido das arestas dos triângulos. Controla a qualidade da triangulação, evitando geometrias muito alongadas e possíveis artefatos.</li>
+                                        <li><em>Raio do círculo</em>: Racional positivo. Raio de um círculo que replica o ponto original em até 8 direções horizontais, aumentando a área de influência do ponto e reduzindo lacunas.</li>
                                         <li><em>Ponto mais alto por píxel</em>: Lógico. Se selecionado utiliza apenas os pontos mais altos por píxel, diminuindo processamento. Se não selecionado então usa todos os primeiros retornos (ReturnNumber).</li>
                                         </ul></li></ul>
                                         <p><a href='https://ris.utwente.nl/ws/portalfiles/portal/453105235/s3.pdf' target='_blank'>Khosravipour et al. 2014</a></p></span>"))
@@ -509,11 +758,125 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(id = "aba_ativa",
                   
+                  #####################
+                  #Aba Início Mainpanel                  
+                  #####################
+                  
+                  tabPanel("Início",
+                           fluidRow(
+                             column(12, 
+                                    div(style = "text-align: center; padding: 20px;",
+                                        h2("Painel Principal"),
+                                        h6("Aqui você visualizará, em 3D e com controle de órbita da câmera, o resultado dos processamentos e caixas de texto com as métricas das análises.")
+                                    )
+                             )
+                           ),
+                           
+                           hr(),
+                           
+                           fluidRow(
+                             column(12, 
+                                    div(style = "text-align: center; padding: 30px; background-color: #f8f9fa; border-radius: 10px;",
+                                        h1("ProcessaLAS", style = "color: #2c3e50; font-weight: bold; margin-bottom: 0px;"),
+                                        p("Análise e processamento inicial de nuvens de pontos LiDAR.", style = "font-size: 18px; color: #7f8c8d;"),
+                                        br(),
+                                        p("Fluxo de trabalho proposto:", style = "font-size: 15px; color: #7f8c8d;")
+                                    )
+                             )
+                           ),
+                           
+                           br(),
+                           
+                           fluidRow(
+                             column(8, offset = 2,
+                                    
+                                    # Passo 1: Diagnóstico
+                                    div(style = "border-left: 4px solid #3498db; padding-left: 20px; margin-bottom: 30px; position: relative;",
+                                        h4(icon("search"), "1. Análise"),
+                                        p("Extração de métricas de densidade e atributos.")
+                                    ),
+                                    
+                                    # Passo 2: Classificação
+                                    div(style = "border-left: 4px solid #f1c40f; padding-left: 20px; margin-bottom: 30px;",
+                                        h4(icon("tags"), "2. Classificação"),
+                                        p("Identificação de pontos ruído (Classe 18) e chão (Classe 2).")
+                                    ),
+                                    
+                                    #2.1 e 2.2
+                                    fluidRow(
+                                      column(6, 
+                                             div(style = "background: #fff3e0; padding: 15px; border-radius: 5px; border-top: 4px solid #f39c12; text-align: center; min-height: 140px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);",
+                                                 h5(tags$b("Classificação de pontos ruído")),
+                                                 p("Pontos que não representam a superfície alvo de sensoriamento.", style = "color: #5d4037;"),
+                                                 p(em("Algoritmos:"), style = "color: #5d4037;"),
+                                                 p("- SOR", style = "color: #5d4037;"),
+                                                 p("- IVF", style = "color: #5d4037;")
+                                             )
+                                      ),
+                                      column(6,
+                                             div(style = "background: #fff3e0; padding: 15px; border-radius: 5px; border-top: 4px solid #f39c12; text-align: center; min-height: 140px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);",
+                                                 h5(tags$b("Classificação de pontos chão")),
+                                                 p("Pontos que representam a superfície do terreno.", style = "color: #5d4037;"),
+                                                 p(em("Algoritmos:"), style = "color: #5d4037;"),
+                                                 p("- CSF", style = "color: #5d4037;"),
+                                                 p("- PMF", style = "color: #5d4037;"),
+                                                 p("- MCC", style = "color: #5d4037;")
+                                             )
+                                      )
+                                    ),
+                                    
+                                    br(),
+                                    
+                                    #3 Geração de Modelos Digitais
+                                    div(style = "border-left: 4px solid #795548; padding-left: 20px; margin-bottom: 30px;",
+                                        h4(icon("layer-group"), "3. Modelos Digitais"),
+                                        p("Geração de Modelos Digitais de Terreno (MDT) e de Superfície (MDS).")
+                                    ),
+                                    
+                                    #3.1 e 3.2
+                                    fluidRow(
+                                      column(6, 
+                                             div(style = "background: #efebe9; padding: 15px; border-radius: 5px; border-top: 4px solid #795548; text-align: center; min-height: 140px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);",
+                                                 h5(tags$b("MDT")),
+                                                 p("Raster que representa as feições do terreno. Obrigatório pontos chão classificados.", style = "color: #5d4037;"),
+                                                 p(em("Algoritmos:"), style = "color: #5d4037;"),
+                                                 p("- KNN-IDW", style = "color: #5d4037;"),
+                                                 p("- TIN", style = "color: #5d4037;"),
+                                                 p("- Krigagem", style = "color: #5d4037;")
+                                             )
+                                      ),
+                                      column(6,
+                                             div(style = "background: #efebe9; padding: 15px; border-radius: 5px; border-top: 4px solid #795548; text-align: center; min-height: 140px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);",
+                                                 h5(tags$b("MDS")),
+                                                 p("Raster que representa as feições do terreno, incluso o objetos sob ele.", style = "color: #5d4037;"),
+                                                 p(em("Algoritmos:"), style = "color: #5d4037;"),
+                                                 p("- P2R", style = "color: #5d4037;"),
+                                                 p("- TIN", style = "color: #5d4037;"),
+                                                 p("- Pit-free", style = "color: #5d4037;")
+                                             )
+                                      )
+                                    ),
+                                    
+                                    # Passo 4: Normalização
+                                    div(style = "border-left: 4px solid #9b59b6; padding-left: 20px; margin-bottom: 30px;",
+                                        h4(icon("mountain"), "4. Normalização"),
+                                        p("Processo de transformação dos valores de altitude em altura absoluta através da subtração da altura dos pontos pela altura do MDT.")
+                                    ),
+                                    
+                                    # Passo 5: Modelo Digital de Altura do Dossel (CHM)
+                                    div(style = "border-left: 4px solid #27ae60; padding-left: 20px; margin-bottom: 30px;",
+                                        h4(icon("tree"), "5. Modelo Digital de Altura do Dossel (CHM)"),
+                                        p("Raster que representa as feições da copa das árvores, com suas respectivas alturas absolutas. Pode ser entendida como a subtração de MDS por MDT.")
+                                    )
+                             )
+                           )
+                  ), 
+                  
                   ##########################
                   #Aba Diagnostico Mainpanel                  
                   ##########################
                   
-                  tabPanel("Diagnóstico",
+                  tabPanel("Análise",
                            uiOutput("main_info")),
                   
                   ##################################
@@ -526,7 +889,7 @@ ui <- fluidPage(
                                                            width = "100%", height = "600px"), 
                                            type = 6, color = "green")),
                            br(),
-                           h4("Diagnósticos dos pontos ruído"),
+                           h4("Análise dos pontos ruído"),
                            uiOutput("diag_ruidos")
                   ),
                   
@@ -540,39 +903,39 @@ ui <- fluidPage(
                                                            width = "100%", height = "600px"), 
                                            type = 6, color = "green")),
                            br(),
-                           h4("Diagnóstico dos pontos chão"),
+                           h4("Análise dos pontos chão"),
                            uiOutput("diag_solo_classificado")
                   ),
                   
-                  ############################
-                  #Aba Normalização Mainpanel#
-                  ############################
+                  ###################
+                  #Aba MDT Mainpanel#
+                  ###################
                   
-                  tabPanel("Normalização e MDT",
+                  tabPanel("MDT",
                            div(class = "plot-border",
                                withSpinner(rglwidgetOutput("plot_mdtn", 
                                                            width = "100%", height = "600px"), 
                                            type = 6, color = "green")),
                            br(),
-                           h4("Diagnóstico MDT"),
-                           uiOutput("diag_mdt"),
-                           br(),
-                           h4("Diagnóstico Normalização"),
-                           uiOutput("diag_norm")
+                           h4("Análise MDT"),
+                           uiOutput("diag_mdt")
                   ),
                   
                   #########
                   #Aba MDS#
                   #########
                   
-                  tabPanel("MDS",
+                  tabPanel("MDS, Normalização e CHM",
                            div(class = "plot-border",
                                withSpinner(rglwidgetOutput("plot_mds", 
                                                            width = "100%", height = "600px"), 
                                            type = 6, color = "green")),
                            br(),
-                           h4("Diagnóstico MDS"),
-                           uiOutput("diag_mds")
+                           h4("Análise MDS / CHM"),
+                           uiOutput("diag_mds"),
+                           br(),
+                           h4("Análise Normalização"),
+                           uiOutput("diag_norm")
                   )
       )
     )
@@ -597,13 +960,13 @@ server <- function(input, output, session) {
   show_na <- reactiveVal(NULL)
   
   ################
-  #Aba Diagnóstico
+  #Aba Análise
   ################
   
   #Input  
   observeEvent(input$lasfile, {
     req(input$lasfile)
-  
+    
     if (!is.null(lasData())) {
       lasData(NULL)
       lasSoloClassificado(NULL)
@@ -697,7 +1060,7 @@ server <- function(input, output, session) {
       cat("Data de criação:", dataf, "\n")
       cat("ID do formato LAS:", hdr$`Point Data Format ID`, "\n")
       cat("Total de pontos:", hdr$`Number of point records`, "\n")
-      cat("Número de pontos por retorno:", hdr$`Number of points by return`, "\n")
+      cat("Quantidade de pontos por retorno:", hdr$`Number of points by return`, "\n")
       cat("Max e Min X:", hdr$`Max X`, hdr$`Min X`, "\n")
       cat("Max e Min Y:", hdr$`Max Y`, hdr$`Min Y`, "\n")
       cat("Max e Min Z:", hdr$`Max Z`, hdr$`Min Z`, "\n")
@@ -708,7 +1071,7 @@ server <- function(input, output, session) {
     output$diag_info <- renderPrint({
       req(lasData())
       
-      withProgress(message = "Carregando diagnóstico...", value = 0, {
+      withProgress(message = "Carregando Análise...", value = 0, {
         
         las <- lasData()
         header <- las@header
@@ -724,9 +1087,20 @@ server <- function(input, output, session) {
         yoffset <- header@PHB$`Y offset`
         zoffset <- header@PHB$`Z offset`
         
+        las_pr <- filter_first(las)
+        ppg <- rasterize_density(las, res = 1)
+        ppg_pr <- rasterize_density(las_pr, res = 1)
+        v_contagem <- values(ppg)
+        n_cel_p <- sum(v_contagem > 0, na.rm = TRUE)
+        v_contagem_pr <- values(ppg_pr)
+        n_cel_pr <- sum(v_contagem_pr > 0, na.rm = TRUE)
+        ppd <- npoints(las_pr) / n_cel_pr
+        sps <- 1 / sqrt(ppd)
+        
         voxels <- voxel_metrics(las, ~length(Z), voxel_size = 1, all_voxels = FALSE)
         nvoxels <- nrow(voxels)
         med_pvox <- round(mean(voxels$V1, na.rm = TRUE), 0)
+        median_pvox <- round(median(voxels$V1, na.rm = TRUE), 0)
         sd_pvox <- round(sd(voxels$V1, na.rm = TRUE), 0)
         
         # Verifica agrupamento dos pontos de solo por desvio padrão da densidade
@@ -749,7 +1123,7 @@ server <- function(input, output, session) {
         
         cat("### XYZ ### \n")
         
-        # Diagnóstico CRS
+        # Análise CRS
         crs_info <- sf::st_crs(las)
         if (!is.na(crs_info$epsg)) {
           cat("Sistema de Coordenadas:", crs_info$epsg, "-", crs_info$Name, "\n")
@@ -763,17 +1137,17 @@ server <- function(input, output, session) {
           cat("Média da coordenada X < 166 mil: Sistema local ou reduzido.\n")
         }
         
-        # Diagnóstico sobre Intensity
+        # Análise sobre Intensity
         tem_intensity <- "Intensity" %in% names(las@data) &&
           mean(!is.na(las@data$Intensity) & las@data$Intensity > 0, na.rm = TRUE) > 0.95
         
-        # Diagnóstico sobre retornos
+        # Análise sobre retornos
         tem_return_number <- "ReturnNumber" %in% names(las@data) &&
           mean(!is.na(las@data$ReturnNumber) & las@data$ReturnNumber > 0) > 0.95
         tem_number_of_returns <- "NumberOfReturns" %in% names(las@data) &&
           mean(!is.na(las@data$NumberOfReturns) & las@data$NumberOfReturns > 0) > 0.95
         
-        # Diagnóstico sobre RGB
+        # Análise sobre RGB
         tem_rgb_valido <- all(c("R", "G", "B") %in% names(las@data)) &&
           mean(rowSums(las@data[, c("R", "G", "B")]) > 0, na.rm = TRUE) > 0.95
         
@@ -800,10 +1174,14 @@ server <- function(input, output, session) {
         cat("Lado X bbox (m):", round(ladox, 2), "\n")
         cat("Lado Y bbox (m):", round(ladoy, 2), "\n")
         cat("Área bbox (m²):", round(area_bbox, 2), "\n")
+        cat("Área ocupada por pontos (m²):", n_cel_p, "\n")
+        cat("Pontos por m² (primeiros retornos / área ocupada por primeiros retornos):", round(ppd, 0), "\n")
+        cat("Distância linear entre primeiros retornos em m (Nominal Post Spacing):", round(sps, 3), "\n")
         cat("Altura Z bbox (m):", round(alt_bbox, 2), "\n")
         cat("Volume bbox (m³):", vol_bbox, "\n")
         cat("Voxels de 1m³ com pelo menos 1 ponto:", nvoxels, "\n")
         cat("Média de Pontos por Voxel (1m³, exceto vazios):", med_pvox, "\n")
+        cat("Mediana de Pontos por Voxel (1m³, exceto vazios):", median_pvox, "\n")
         cat("Desvio padrão de Pontos por Voxel (1m³, exceto vazios):", sd_pvox, "\n")
         cat("Scale Factor:", xscale, yscale, zscale, "\n")
         cat("Offset Value:", xoffset, yoffset, zoffset, "\n")
@@ -853,7 +1231,7 @@ server <- function(input, output, session) {
             if (is.na(esta_normalizada)) "Não aplicável \n" 
             else if (esta_normalizada) "Sim" else "Não", "\n \n")} else {cat("\n")}   
         
-        # Diagnóstico PointSourceID: número de fontes distintas
+        # Análise PointSourceID: Quantidade de fontes distintas
         if ("PointSourceID" %in% names(las@data)) {
           fontes_id <- unique(na.omit(las@data$PointSourceID))
           qtd_fontes <- length(fontes_id)
@@ -913,7 +1291,7 @@ server <- function(input, output, session) {
     if (input$algoritmo_ruidos == "sor") {
       fluidRow(
         column(6,
-               numericInput("k", "Número de vizinhos (k)", value = 10),
+               numericInput("k", "Quantidade de vizinhos (k)", value = 10),
                numericInput("m", "Multiplicador/Quantil (m)", value = 3)),
         column(6,
                selectInput("quantile", "Quantílico", 
@@ -941,12 +1319,12 @@ server <- function(input, output, session) {
             "⚠️ Quando 'Quantílico' está habilitado, o valor de 'm' deve estar entre 0 e 1 (ex: 0.9).",
             type = "error", duration = 8
           )
-          return()  # Interrompe a execução
+          return()
         }
       } else {
         if (!is.numeric(input$m) || input$m <= 0) {
           showNotification(
-            "⚠️ Quando 'Quantílico' está desativado, o valor de 'm' deve ser um número real positivo (ex: 1 ou 2.94).",
+            "⚠️ Quando 'Quantílico' está desativado, o valor de 'm' deve ser um número Racional positivo (ex: 1 ou 2.94).",
             type = "error", duration = 8
           )
           return()
@@ -988,7 +1366,7 @@ server <- function(input, output, session) {
       xlim <- bbox[,"X"]
       ylim <- bbox[,"Y"]
       zlim <- bbox[,"Z"]
-      resvx <- (1 / input$ppmc)^(1/3)
+      resvx <- (1 / input$ppmc)^(1/3) #
       cor_ruidos <- input$cor_ruidos
       cor_nao_ruidos <- input$cor_nao_ruidos
       mostrar_naoruidos <- input$mostrar_naoruidos
@@ -1218,7 +1596,7 @@ server <- function(input, output, session) {
         }
         
         if (length(th_vals) != length(ws_vals)) {
-          showNotification("Número de thresholds deve ser 1 ou igual ao comprimento de ws.", type = "error")
+          showNotification("Quantidade de thresholds deve ser 1 ou igual ao comprimento de ws.", type = "error")
           return()
         }
         
@@ -1339,11 +1717,12 @@ server <- function(input, output, session) {
     # Cálculo da densidade e seu desvio padrão
     dens <- grid_density(solo, res = 1)
     media <- mean(values(dens), na.rm = TRUE)
+    median <- median(values(dens), na.rm = TRUE)
     desvio <- sd(values(dens), na.rm = TRUE)
     
     fluidRow(
       column(6,
-             strong("Total de pontos:"), br(), total, br(), br(),
+             strong("Pontos chão:"), br(), total, br(), br(),
              strong("Z máx:"), br(), round(zmax, 2), br(), br(),
              strong("Z mín:"), br(), round(zmin, 2), br(), br(),
              strong("Total de pontos não chão plotados:"), br(), totalppc()
@@ -1351,6 +1730,7 @@ server <- function(input, output, session) {
       column(6,
              strong("Z amplitude:"), br(), round(amplitude, 2), br(), br(),
              strong("Média/m²:"), br(), round(media, 2), br(), br(),
+             strong("Mediana/m²"), br(), round(median, 2), br(), br(),
              strong("Desvio/m²:"), br(), round(desvio, 2)
       )
     )
@@ -1388,9 +1768,48 @@ server <- function(input, output, session) {
     }
   )
   
-  ##################      
-  #Aba Normalização#
-  ##################
+  output$salvar_las_cpc <- downloadHandler(
+    filename = function() {
+      ext <- if (input$comprimir) ".laz" else ".las"
+      paste0("nuvem_solo_", Sys.Date(), ext)
+    },
+    content = function(file) {
+      req(lasData())
+      las <- lasData()
+      
+      las_solo <- lidR::filter_poi(las, Classification == 2L)
+      
+      if (nrow(las_solo@data) == 0) {
+        showNotification("Nenhum ponto classificado como solo (classe 2) foi encontrado.", type = "error")
+        return(NULL)
+      }
+      
+      lidR::writeLAS(las_solo, file)
+    }
+  )
+  
+  output$salvar_las_cv <- downloadHandler(
+    filename = function() {
+      ext <- if (input$comprimir) ".laz" else ".las"
+      paste0("nuvem_solo_", Sys.Date(), ext)
+    },
+    content = function(file) {
+      req(lasData())
+      las <- lasData()
+      
+      las_solo <- lidR::filter_poi(las, Classification != 2L)
+      
+      if (nrow(las_solo@data) == 0) {
+        showNotification("Nenhum ponto classificado como solo (classe 2) foi encontrado.", type = "error")
+        return(NULL)
+      }
+      
+      lidR::writeLAS(las_solo, file)
+    }
+  )
+  #########      
+  #Aba MDT#
+  #########
   
   output$parametros_mdt <- renderUI({
     req(input$algoritmo_mdt)
@@ -1400,7 +1819,7 @@ server <- function(input, output, session) {
         numericInput("idw_res", "Resolução da malha (grid)", value = 1, step = 1),
         fluidRow(
           column(6,
-                 numericInput("idw_k", "Número de vizinhos (k)", value = 10, step = 1),
+                 numericInput("idw_k", "Quantidade de vizinhos (k)", value = 10, step = 1),
                  numericInput("idw_p", "Expoente (p)", value = 2, step = 1)),
           column(6,
                  numericInput("idw_rmax", "Raio máximo (rmax)", value = 50, step = 1))
@@ -1416,7 +1835,7 @@ server <- function(input, output, session) {
           condition = "input.alterar_extrap == 'Sim'",
           fluidRow(
             column(6,
-                   numericInput("tin_k", "Número de vizinhos (k)", value = 3, step = 1),
+                   numericInput("tin_k", "Quantidade de vizinhos (k)", value = 3, step = 1),
                    numericInput("tin_p", "Expoente (p)", value = 2)),
             column(6,
                    numericInput("tin_rmax", "Raio máximo (rmax)", value = 50, step = 1))
@@ -1426,7 +1845,7 @@ server <- function(input, output, session) {
     } else if (input$algoritmo_mdt == "krig") {
       tagList(
         numericInput("res_krig", "Resolução da malha (grid)", value = 1, step = 1),
-        numericInput("k_krig", "Número de vizinhos (k)", value = 10, step = 1)
+        numericInput("k_krig", "Quantidade de vizinhos (k)", value = 10, step = 1)
       )
     }
   })
@@ -1497,54 +1916,8 @@ server <- function(input, output, session) {
     })
   })
   
-  observeEvent(input$aplicar_normalizacao, {
-    req(lasData())
-    req(mdt())
-    
-    withProgress(message = "Normalizando...", {
-      lasn <- normalize_height(lasData(), mdt())
-      lasNormalizado(lasn)
-      showNotification("Normalizado.",
-                       type = "message")
-    })
-  })
-  
-  diag_norm_vals <- eventReactive(input$aplicar_normalizacao, {
-    req(lasNormalizado(), mdt())
-    chao <- filter_poi(lasNormalizado(), Classification == 2)
-    if (npoints(chao) == 0) return("Nenhum ponto classificado como chão")
-    
-    list(
-      zmax = max(chao@data$Z, na.rm = TRUE),
-      zmin = min(chao@data$Z, na.rm = TRUE),
-      zmed = mean(chao@data$Z, na.rm = TRUE),
-      degp = sum(duplicated(chao@data[, c("X", "Y")])),
-      zamp = max(chao@data$Z, na.rm = TRUE) - min(chao@data$Z, na.rm = TRUE)
-    )
-  })
-  
-  output$hist_chao_plotly <- renderPlotly({
-    req(input$aplicar_normalizacao)
-    req(lasNormalizado())
-    
-    chao <- filter_poi(lasNormalizado(), Classification == 2)
-    req(npoints(chao) > 0)
-    
-    plot_ly(
-      x = chao@data$Z,
-      type = "histogram",
-      nbinsx = 30,
-      marker = list(color = 'skyblue')
-    ) %>%
-      layout(
-        title = "Histograma de alturas do chão (normalizado)",
-        xaxis = list(title = "Altura (m)"),
-        yaxis = list(title = "Frequência")
-      )
-  })
-  
   output$diag_norm <- renderUI({
-    req(input$aba_ativa == "Normalização e MDT")
+    req(input$aba_ativa == "MDS, Normalização e CHM")
     vals <- diag_norm_vals()
     req(vals)
     
@@ -1592,8 +1965,8 @@ server <- function(input, output, session) {
     tagList(
       fluidRow(
         column(6,
-               strong("Número de pixels:"), br(), m$tam_vals, br(), br(),
-               strong("Número de píxels inválidos:"), br(), m$invalid_vals, br(), br(),
+               strong("Quantidade de pixels:"), br(), m$tam_vals, br(), br(),
+               strong("Quantidade de píxels inválidos:"), br(), m$invalid_vals, br(), br(),
                strong("Percentual de píxels inválidos:"), br(), round(m$perc_inv_vals,2)),
         column(6,
                strong("Z máx:"), br(), round(m$max_vals,2), br(), br(),
@@ -1614,17 +1987,6 @@ server <- function(input, output, session) {
     }
   )
   
-  observeEvent(input$salvar_norm, {
-    req(lasData())
-    req(lasNormalizado())
-    
-    withProgress(message = "Salvando normalização...", {
-      lasData(lasNormalizado())
-      showNotification("Salvo.",
-                       type = "message")
-    })  
-  })
-  
   observeEvent(input$limpar_memoria_s, {
     mdt(NULL)
     gc()
@@ -1632,24 +1994,67 @@ server <- function(input, output, session) {
                      type = "message")
   })
   
-  output$salvar_las_n <- downloadHandler(
-    filename = function() {
-      if (input$comprimir) {
-        paste0("arquivo_", Sys.Date(), ".laz")
-      } else {
-        paste0("arquivo_", Sys.Date(), ".las")
-      }
-    },
-    content = function(file) {
-      req(lasData())
-      las <- lasData()
-      writeLAS(las, file)
-    }
-  )
-  
   #########      
   #Aba MDS#
   #########
+  
+  observeEvent(input$aplicar_normalizacao, {
+    req(lasData())
+    req(mdt())
+    
+    withProgress(message = "Normalizando...", {
+      lasn <- normalize_height(lasData(), mdt())
+      lasNormalizado(lasn)
+      showNotification("Normalizado.",
+                       type = "message")
+    })
+  })
+  
+    observeEvent(input$aplicar_normalizacao, {
+    req(lasData())
+    req(mdt())
+    
+    withProgress(message = "Normalizando...", {
+      lasn <- normalize_height(lasData(), mdt())
+      lasNormalizado(lasn)
+      showNotification("Normalizado.",
+                       type = "message")
+    })
+  })
+  
+  diag_norm_vals <- eventReactive(input$aplicar_normalizacao, {
+    req(lasNormalizado(), mdt())
+    chao <- filter_poi(lasNormalizado(), Classification == 2)
+    if (npoints(chao) == 0) return("Nenhum ponto classificado como chão")
+    
+    list(
+      zmax = max(chao@data$Z, na.rm = TRUE),
+      zmin = min(chao@data$Z, na.rm = TRUE),
+      zmed = mean(chao@data$Z, na.rm = TRUE),
+      degp = sum(duplicated(chao@data[, c("X", "Y")])),
+      zamp = max(chao@data$Z, na.rm = TRUE) - min(chao@data$Z, na.rm = TRUE)
+    )
+  })
+  
+  output$hist_chao_plotly <- renderPlotly({
+    req(input$aplicar_normalizacao)
+    req(lasNormalizado())
+    
+    chao <- filter_poi(lasNormalizado(), Classification == 2)
+    req(npoints(chao) > 0)
+    
+    plot_ly(
+      x = chao@data$Z,
+      type = "histogram",
+      nbinsx = 30,
+      marker = list(color = 'skyblue')
+    ) %>%
+      layout(
+        title = "Histograma de alturas do chão (normalizado)",
+        xaxis = list(title = "Altura (m)"),
+        yaxis = list(title = "Frequência")
+      )
+  })
   
   output$parametros_mds <- renderUI({
     req(input$algoritmo_mds)
@@ -1659,11 +2064,24 @@ server <- function(input, output, session) {
         numericInput("res", "Resolução da malha (grid)", value = 1, step = 1),
         fluidRow(
           column(6,
-                 textInput("th", "Níveis de corte vertical", value = "0,5,10,20,30"),
+                 textInput("th", "Limiares de corte vertical", value = "0,5,10,20,30"),
                  textInput("me", "Máximo lado do triângulo", value = "0,1")),
           column(6,
                  numericInput("sb", "Raio do círculo", value = 0, step = 0.1),
-                 checkboxInput("h", "Ponto mais alto por pixel", value = TRUE)
+                 div(style = "display: flex; align-items: center; position: relative;",
+                     checkboxInput("h", "Ponto mais alto por pixel", value = TRUE),
+                     span(
+                       icon("info-circle"), 
+                       id = "ajuda_h", 
+                       style = "color: #b5b5b5; cursor: help; margin-left: -10px; margin-bottom: 10px; font-size: 0.9em; z-index: 999; pointer-events: auto;"
+                     )
+                 ),
+                 bsTooltip(
+                   id = "ajuda_h", 
+                   title = "Se ativado, utiliza apenas o ponto mais alto de cada pixel, acelerando o processamento. Se desativado, utiliza todos os primeiros retornos.",
+                   placement = "top", 
+                   trigger = "hover"
+                 )
           )
         )
       )
@@ -1676,7 +2094,7 @@ server <- function(input, output, session) {
           ),
           column(6,
                  selectInput("fill", "Função de interpolação", 
-                             choices = c("Nenhum" = "none", "KNN-IDW" = "knnidw", "TIN" = "tin", "Kriging" = "kriging"),
+                             choices = c("Nenhum" = "none", "KNN-IDW" = "knnidw", "TIN" = "tin", "Krigagem" = "kriging"),
                              selected = "none"))
         )
       )
@@ -1687,8 +2105,23 @@ server <- function(input, output, session) {
           column(6,
                  numericInput("me", "Máximo lado do triângulo", value = 2)),
           column(6,
-                 checkboxInput("h", "Ponto mais alto por pixel", value = TRUE)
-          )))
+                 div(style = "display: flex; align-items: center; position: relative;",
+                     checkboxInput("h", "Ponto mais alto por pixel", value = TRUE),
+                     span(
+                       icon("info-circle"), 
+                       id = "ajuda_h", 
+                       style = "color: #b5b5b5; cursor: help; margin-left: -10px; margin-bottom: 10px; font-size: 0.9em; z-index: 999; pointer-events: auto;"
+                     )
+                 ),
+                 bsTooltip(
+                   id = "ajuda_h", 
+                   title = "Se ativado, utiliza apenas o ponto mais alto de cada pixel, acelerando o processamento. Se desativado, utiliza todos os primeiros retornos.",
+                   placement = "top", 
+                   trigger = "hover"
+                 )
+          )
+        )
+      )
     }
   })
   
@@ -1726,7 +2159,7 @@ server <- function(input, output, session) {
       return()
     }
     
-    withProgress(message = "Gerando MDS...", {
+    withProgress(message = "Gerando MDS / CHM...", {
       
       if (input$algoritmo_mds == "pf") {
         th_v <- tryCatch(parse_seq(input$th),
@@ -1801,8 +2234,8 @@ server <- function(input, output, session) {
     tagList(
       fluidRow(
         column(6,
-               strong("Número de pixels:"), br(), m$tam_vals, br(), br(),
-               strong("Número de píxels inválidos:"), br(), m$invalid_vals, br(), br(),
+               strong("Quantidade de pixels:"), br(), m$tam_vals, br(), br(),
+               strong("Quantidade de píxels inválidos:"), br(), m$invalid_vals, br(), br(),
                strong("Percentual de píxels inválidos:"), br(), round(m$perc_inv_vals, 2)),
         column(6,
                strong("Z máx:"), br(), round(m$max_vals,2), br(), br(),
@@ -1822,6 +2255,38 @@ server <- function(input, output, session) {
       raster::writeRaster(mds(), file, filetype = "GTiff", overwrite = TRUE)
     }
   )
+  
+  observeEvent(input$salvar_norm, {
+    req(lasData())
+    req(lasNormalizado())
+    
+    withProgress(message = "Salvando normalização...", {
+      lasData(lasNormalizado())
+      showNotification("Salvo.",
+                       type = "message")
+    })  
+  })
+  
+  output$salvar_las_n <- downloadHandler(
+    filename = function() {
+      if (input$comprimir) {
+        paste0("arquivo_", Sys.Date(), ".laz")
+      } else {
+        paste0("arquivo_", Sys.Date(), ".las")
+      }
+    },
+    content = function(file) {
+      req(lasData())
+      las <- lasData()
+      writeLAS(las, file)
+    })
+  
+  observeEvent(input$limpar_memoria_mds, {
+    mds(NULL)
+    gc()
+    showNotification("Memória liberada",
+                     type = "message")
+  })
 }
 
 shinyApp(ui, server)
